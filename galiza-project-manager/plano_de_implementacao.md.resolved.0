@@ -1,0 +1,63 @@
+# Plano de Implementação: Galiza - Gestão de Projetos
+
+Este plano guiará a transformação da interface que você tinha no Base 44 em um projeto robusto de **React**. A aplicação será desenhada para suportar versão **Web** e rodar como **Executável Desktop (PC)** simultaneamente (utilizando Electron).
+
+Você pode consultar e alterar este arquivo sempre que achar necessário ao longo do projeto.
+
+---
+
+## 🚀 Fase 1: Setup da Base do Projeto (React + Vite + Electron)
+*Status: ⏳ Pendente*
+Apesar de alguns pacotes existirem no `package.json`, precisaremos formalizar o setup.
+- [ ] Instalar as dependências principais (`react`, `react-dom`).
+- [ ] Renomear os arquivos iniciais de Vite de `.ts` para `.tsx` para aceitar componentes React.
+- [ ] Integrar e configurar o **Electron**. Ele será a "Ponte" que vai transformar toda a sua aplicação React que roda no navegador em um arquivo `.exe` instalável no Windows.
+- [ ] Configurar roteamento base com `react-router-dom` para as principais páginas.
+
+## 🎨 Fase 2: Design System e Estilos Base (Vanilla CSS)
+*Status: ⏳ Pendente*
+Iremos focar em uma interface premium e moderna (Dark/Light mode). Faremos isso de forma controlada via CSS puro, para termos performance e máximo controle do layout.
+- [ ] Criar arquivo de variáveis CSS (`:root`) para a paleta principal de cores baseada nas screenshots (Laranja Galiza, tons de cinza do fundo, tons do texto e cores de aviso).
+- [ ] Configurar tipografia moderna (ex: familia font *Inter* ou *Roboto*).
+- [ ] Criar componentes Reutilizáveis Base:
+  - Botões (Primários, Secundários, Alertas).
+  - Cards e Painéis Brancos (Glassmorphism sutil / bordas arredondadas).
+  - Barra de Progresso.
+  - Modais.
+
+## 🧭 Fase 3: Layout Principal e Navegação
+*Status: ⏳ Pendente*
+- [ ] Construir o Topbar (Cabeçalho Superior) com o Logotipo "Galiza Gestão de Projetos".
+- [ ] Implementar o Menu de Navegação Horizontal: _Dashboard, Projetos, Tarefas, Usuários, Colaboradores, Admin_.
+- [ ] Adicionar os Ícones Auxiliares à direita: Notificações, Perfil e Toggle Dark/Light Mode.
+- [ ] Criar o contêiner central dinâmico, onde as páginas serão renderizadas.
+
+## 📊 Fase 4: Desenvolvimento das Páginas (Views)
+*Status: ⏳ Pendente*
+Vamos recriar com precisão as telas recebidas nas imagens.
+- **Tela 1: Dashboard:**
+  - Layout contendo "cards" de Resumo Geral (Total de Projetos, Avanço Geral, Tarefas Pendentes, Urgentes).
+  - Coluna de divisão: Relatórios em Andamento vs Tarefas Urgentes.
+- **Tela 2: Projetos:**
+  - Grid de cards para os projetos, contendo barra de tempo, nome da rede de fibra, badge de dificuldade (Médio/Difícil), e exibição de alerta caso "Atrasado".
+  - Botão "Novo Projeto".
+- **Tela 3: Gerenciamento de Usuários:**
+  - Lista de colaboradores listando nome, E-mail, data de cadastro.
+  - Indicadores e badges para "Administrador".
+  - Botão de Convidar Usuário no canto superior.
+- **Tela 4: Painel Administrativo:**
+  - Estatísticas aprimoradas.
+  - Gráficos integrando barra de desempenho e avanço por colaborador usando a biblioteca `Recharts`.
+  - Botão e Modal suspenso de "Gerar Relatórios" (Geral, Projetos, Colaboradores).
+
+## 🖥️ Fase 5: Integração Web + Executável de PC
+*Status: ⏳ Pendente*
+- [ ] Testar a aplicação rodando como um Servidor Web local.
+- [ ] Testar a aplicação encapsulada na Janela de Software Desktop (Electron).
+- [ ] Configurar os Scripts de "Build": 
+  - Um script para exportar o site web comum.
+  - Um script para "empacotar" a versão em `.exe` pronta para distribuição de usuários PC.
+
+---
+
+**Quer adicionar mais alguma funcionalidade ou alterar a ordem de alguma Fase? Me avise, caso contrário podemos começar a Fase 1!**
