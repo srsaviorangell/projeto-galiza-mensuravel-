@@ -6,13 +6,13 @@ import { AppContext } from '../App';
 import { 
   Plus, Search, Filter, MoreVertical, Edit3, Trash2, 
   CheckCircle2, Clock, AlertCircle, Link2, 
-  CalendarDays, User as UserIcon, X, History 
+  CalendarDays, User as UserIcon, X, History, Undo2 
 } from 'lucide-react';
 import { CircularProgress } from '../components/CircularProgress';
 import './Tarefas.css';
 
 export default function Tarefas() {
-  const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, addHistory, getHistory } = useContext(AppContext);
+  const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, getHistory, deleteHistory, undoTaskComplete } = useContext(AppContext);
   const navigate = useNavigate();
   
   const displayedTasks = isAdmin ? tasks : userTasks;
@@ -24,14 +24,6 @@ export default function Tarefas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
 
-  const openExecutionModal = (task: any) => {
-    setExecutionModalTask(task);
-    setExecutionForm({
-      ...executionForm,
-      colaboradorId: task.assigneeId || '',
-      data: new Date().toISOString().split('T')[0]
-    });
-  };
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [executionModalTask, setExecutionModalTask] = useState<any>(null);
   const [historyModalTask, setHistoryModalTask] = useState<any>(null);
@@ -42,12 +34,22 @@ export default function Tarefas() {
     const changes = await getHistory('task', task.id);
     setTaskHistory(changes || []);
   };
+  
   const [executionForm, setExecutionForm] = useState({
     colaboradorId: '',
     quantidade: '',
     data: new Date().toISOString().split('T')[0],
     observacao: ''
   });
+
+  const openExecutionModal = (task: any) => {
+    setExecutionModalTask(task);
+    setExecutionForm({
+      ...executionForm,
+      colaboradorId: task.assigneeId || '',
+      data: new Date().toISOString().split('T')[0]
+    });
+  };
 
   // Task Form State
   const emptyTask = {
@@ -56,7 +58,7 @@ export default function Tarefas() {
     priority: 'Média',
     status: 'A Fazer',
     projectId: '', // Empty means avulsa
-    assignee: '',
+    assigneeId: '',
     dueDate: '',
     measurementTarget: 1,
     measurementCurrent: 0,
@@ -88,7 +90,7 @@ export default function Tarefas() {
       setTaskForm({
         ...task,
         projectId: task.projectId || '',
-        assignee: task.assignee || ''
+        assigneeId: task.assigneeId || ''
       });
       setIsLinked(!!task.projectId);
     } else {
@@ -104,9 +106,11 @@ export default function Tarefas() {
     
     const dataToSave = {
       ...taskForm,
-      projectId: isLinked ? Number(taskForm.projectId) : null,
-      assigneeId: taskForm.assigneeId
+      projectId: isLinked ? Number(taskForm.projectId) : null
     };
+    
+    // Cleanup for safety (prevent schema cache errors)
+    delete (dataToSave as any).assignee;
 
     if (editingTask) {
       await updateTask(editingTask.id, dataToSave);
@@ -123,50 +127,54 @@ export default function Tarefas() {
     const qty = Number(executionForm.quantidade);
     if (!qty || qty <= 0) return alert('Quantidade inválida.');
     
-    // Get geolocation if possible
-    let location = null;
     try {
-      if ("geolocation" in navigator) {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
+      // Get geolocation if possible
+      let location = null;
+      try {
+        if ("geolocation" in navigator) {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          location = {
+            lat: (position as any).coords.latitude,
+            lng: (position as any).coords.longitude
+          };
+        }
+      } catch (err) {
+        console.warn("Could not get location:", err);
       }
-    } catch (err) {
-      console.warn("Could not get location:", err);
+
+      const currentTask = tasks.find(t => t.id === executionModalTask.id);
+      if(!currentTask) return;
+
+      const newCurrent = (currentTask.measurementCurrent || 0) + qty;
+      const updatedExecutions = [...(currentTask.executions || []), {
+         id: Date.now(),
+         colaboradorId: executionForm.colaboradorId,
+         quantidade: qty,
+         data: executionForm.data,
+         observacao: executionForm.observacao,
+         location: location,
+         timestamp: new Date().toISOString()
+      }];
+
+      await updateTask(currentTask.id, {
+         measurementCurrent: newCurrent,
+         executions: updatedExecutions
+      });
+      setExecutionModalTask(null);
+      setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
+    } catch (error: any) {
+      console.error(error);
+      alert("Erro ao registrar produção: " + (error.message || "Erro de sincronização"));
     }
-
-    const currentTask = tasks.find(t => t.id === executionModalTask.id);
-    if(!currentTask) return;
-
-    const newCurrent = (currentTask.measurementCurrent || 0) + qty;
-    const updatedExecutions = [...(currentTask.executions || []), {
-       id: Date.now(),
-       colaboradorId: executionForm.colaboradorId,
-       quantidade: qty,
-       data: executionForm.data,
-       observacao: executionForm.observacao,
-       location: location,
-       timestamp: new Date().toISOString()
-    }];
-
-    await updateTask(currentTask.id, {
-       measurementCurrent: newCurrent,
-       executions: updatedExecutions,
-       status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
-    });
-    setExecutionModalTask(null);
-    setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
   };
 
   const openEditTask = (task: any) => {
     setTaskForm({ 
       ...task,
       projectId: task.projectId || '',
-      assignee: task.assignee || ''
+      assigneeId: task.assigneeId || ''
     });
     setEditingTask(task);
     setIsLinked(!!task.projectId);
@@ -177,6 +185,13 @@ export default function Tarefas() {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
       await deleteTask(id);
     }
+  };
+
+  const handleUndoComplete = async (task: any) => {
+    if (undoTaskComplete) {
+      await undoTaskComplete(task.id);
+    }
+    setOpenMenuId(null);
   };
 
   const getProjectName = (id: number | null) => {
@@ -190,7 +205,42 @@ export default function Tarefas() {
     return user?.name || 'Não atribuído';
   };
 
-  const assignees = getAllAssignees();
+  const handleDeleteHistory = async (historyId: string) => {
+    if (!window.confirm('Deseja excluir este registro de atividade?')) return;
+    const success = await (deleteHistory as any)(historyId);
+    if (success && historyModalTask) {
+       const changes = await (getHistory as any)('task', historyModalTask.id);
+       setTaskHistory(changes || []);
+    }
+  };
+
+  const formatHistoryValue = (h: any) => {
+    try {
+      if (h.action === 'create') return 'Atividade Criada';
+      if (h.action === 'delete') return 'Atividade Excluída';
+      
+      let newValue = h.newValue;
+      let oldValue = h.oldValue;
+      
+      if (typeof newValue === 'string' && (newValue.startsWith('{') || newValue.startsWith('['))) newValue = JSON.parse(newValue);
+      if (typeof oldValue === 'string' && (oldValue.startsWith('{') || oldValue.startsWith('['))) oldValue = JSON.parse(oldValue);
+
+      if (newValue?.measurementCurrent !== undefined && oldValue?.measurementCurrent !== undefined) {
+        const diff = Number(newValue.measurementCurrent) - Number(oldValue.measurementCurrent);
+        const unit = newValue.measurementType || 'UN';
+        if (diff > 0) return `Lançou +${diff} ${unit} (Total: ${newValue.measurementCurrent}/${newValue.measurementTarget})`;
+        if (diff < 0) return `Removeu ${Math.abs(diff)} ${unit} (Total: ${newValue.measurementCurrent}/${newValue.measurementTarget})`;
+      }
+
+      if (h.action === 'update' && newValue?.status && oldValue?.status && newValue.status !== oldValue.status) {
+        return `Atividade movida para: ${newValue.status}`;
+      }
+
+      return 'Alteração de dados';
+    } catch (e) {
+      return 'Alteração registrada';
+    }
+  };
 
   return (
     <div className="tarefas-container animate-fadeIn">
@@ -205,7 +255,7 @@ export default function Tarefas() {
         </button>
       </div>
 
-      {/* Stats Cards (Mini Dashboard for Tasks) */}
+      {/* Stats Cards */}
       <div className="pd-stats-row">
           <div className="pd-stat-card">
               <div className="stat-info">
@@ -240,7 +290,7 @@ export default function Tarefas() {
       {/* Filter Bar */}
       <div className="filter-bar">
         <div className="search-wrapper">
-          <Search className="search-icon" size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+          <Search className="search-icon" size={18} />
           <input 
             type="text" 
             placeholder="Buscar por título da tarefa..." 
@@ -249,20 +299,12 @@ export default function Tarefas() {
           />
         </div>
         <div className="filters-group">
-          <select 
-            className="filter-select"
-            value={filterProject}
-            onChange={(e) => setFilterProject(e.target.value)}
-          >
+          <select className="filter-select" value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
             <option value="all">Todos os Projetos</option>
             <option value="standalone">Apenas Avulsas</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <select 
-            className="filter-select"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
+          <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">Todos os Status</option>
             <option value="A Fazer">A Fazer</option>
             <option value="Concluída">Concluída</option>
@@ -275,29 +317,16 @@ export default function Tarefas() {
         {filteredTasks.map((task) => {
           const isDone = task.status === 'Concluída';
           const pName = getProjectName(task.projectId);
-          const assigneeName = getAssigneeName(task.assignee);
+          const assigneeName = getAssigneeName(task.assigneeId);
           
           return (
-            <div 
-              key={task.id} 
-              className="rich-task-card projeto-card" 
-              style={isDone ? { borderColor: 'var(--success)', backgroundColor: 'rgba(16, 185, 129, 0.04)' } : {}}
-            >
-              {/* Hierarquia Visual de 5 Níveis conforme ProjetoDetalhes */}
-              
-              {/* Nível 1: Header */}
+            <div key={task.id} className="rich-task-card projeto-card" style={isDone ? { borderColor: 'var(--success)', backgroundColor: 'rgba(16, 185, 129, 0.04)' } : {}}>
               <div className="rich-task-header">
                 <div>
                   <span className="rtc-title" style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
-                  {pName ? (
-                    <div className="rtc-project-badge">
-                        <Link2 size={10} /> {pName}
-                    </div>
-                  ) : (
-                    <div className="rtc-project-badge" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
-                        Avulsa
-                    </div>
-                  )}
+                  <div className="rtc-project-badge" style={!pName ? { background: 'var(--bg-hover)', color: 'var(--text-secondary)' } : {}}>
+                      {pName ? <><Link2 size={10} /> {pName}</> : 'Avulsa'}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span className="rtc-tag" style={isDone ? { backgroundColor: 'var(--success)', color: '#fff' } : {}}>{task.status}</span>
@@ -308,59 +337,45 @@ export default function Tarefas() {
                 
                 {openMenuId === task.id && (
                     <div className="projeto-context-menu" style={{ right: '10px', top: '40px', display: 'flex' }}>
+                         {isDone && <button onClick={() => handleUndoComplete(task)}><Undo2 size={14} /> Desfazer</button>}
                          <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
                          <button className="menu-danger" onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}><Trash2 size={14} /> Excluir</button>
                     </div>
                 )}
               </div>
 
-              {/* Nível 2: Descrição e Responsável */}
-              <div className="rtc-desc" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+              <div className="rtc-desc">
                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div className="rtc-color-dot" style={{ backgroundColor: task.color }} />
-                    <span style={{ fontWeight: 600 }}>{task.priority}</span>
+                    <span style={{ fontWeight: 600 }}>{task.priority || 'Média'}</span>
                  </div>
-                 <p style={{ margin: '4px 0', fontSize: '13px' }}>{task.description || 'Sem descrição detalhada.'}</p>
+                 <p style={{ margin: '4px 0', fontSize: '13px' }}>{task.description || 'Sem descrição.'}</p>
                  <div className="rtc-user-assignee">
                     <div className="rtc-user-avatar">{assigneeName.charAt(0).toUpperCase()}</div>
                     <span>{assigneeName}</span>
                  </div>
               </div>
 
-              {/* Nível 3: Progresso (Círculo) */}
               <div className="rtc-progress-area">
-                <CircularProgress 
-                    current={task.measurementCurrent || 0} 
-                    total={task.measurementTarget || 1} 
-                    color={isDone ? 'var(--success)' : 'var(--accent)'}
-                />
-                <span className="rtc-progress-text">
-                    {task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}
-                </span>
+                <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} color={isDone ? 'var(--success)' : 'var(--accent)'}/>
+                <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
               </div>
 
-              {/* Nível 4: Datas e Alertas (Slot fixo) */}
               <div style={{ minHeight: '22px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
                  {task.dueDate ? (
                     <div className="rtc-alert" style={{ color: isDone ? 'var(--success)' : 'var(--text-secondary)' }}>
-                        <Clock size={14}/> {isDone ? 'Concluído em' : 'Prazo:'} {task.dueDate}
+                        <Clock size={14}/> {isDone ? 'Fechada em' : 'Prazo:'} {task.dueDate}
                     </div>
                  ) : <div style={{ height: '22px' }}></div>}
               </div>
 
-              {/* Nível 5: Rodapé de Ações (Replicação do modelo unificado de botões individuais) */}
-                  <div className="rtc-actions" style={{ marginTop: 'auto' }}>
-                     <button 
-                       className="btn-registrar" 
-                       onClick={() => openExecutionModal(task)}
-                       disabled={!task.assigneeId}
-                       style={!task.assigneeId ? { background: '#cbd5e1', cursor: 'not-allowed', color: '#64748b' } : {}}
-                     >
-                        {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
-                     </button>
-                      <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
-                 <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>
-                 <button className="rtc-icon-btn danger" onClick={() => handleDelete(task.id)} title="Excluir"><Trash2 size={16}/></button>
+              <div className="rtc-actions" style={{ marginTop: 'auto' }}>
+                 <button className="btn-registrar" onClick={() => openExecutionModal(task)} disabled={!task.assigneeId} style={!task.assigneeId ? { background: '#cbd5e1', cursor: 'not-allowed', color: '#64748b' } : (isDone ? { background: 'var(--success)' } : {})}>
+                    {task.assigneeId ? (isDone ? 'Ver Histórico' : 'Lançar Atividade') : 'Sem Responsável'}
+                 </button>
+                 <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)}><History size={16}/></button>
+                 <button className="rtc-icon-btn" onClick={() => handleOpenModal(task)}><Edit3 size={16}/></button>
+                 <button className="rtc-icon-btn danger" onClick={() => handleDelete(task.id)}><Trash2 size={16}/></button>
               </div>
             </div>
           );
@@ -380,7 +395,7 @@ export default function Tarefas() {
                  <label>Colaborador *</label>
                  <select value={executionForm.colaboradorId} onChange={e => setExecutionForm({...executionForm, colaboradorId: e.target.value})}>
                    <option value="">Selecione...</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                  </select>
                </div>
                <div className="form-row">
@@ -396,14 +411,7 @@ export default function Tarefas() {
             </div>
             <div className="modal-footer">
                <button className="btn-secondary" onClick={() => setExecutionModalTask(null)}>Cancelar</button>
-               <button 
-                 className="btn-primary" 
-                 onClick={handleSaveExecution}
-                 disabled={!executionForm.colaboradorId}
-                 style={!executionForm.colaboradorId ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-               >
-                 Salvar Produção
-               </button>
+               <button className="btn-primary" onClick={handleSaveExecution} disabled={!executionForm.colaboradorId} style={!executionForm.colaboradorId ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>Salvar Produção</button>
             </div>
           </div>
         </div>
@@ -419,40 +427,21 @@ export default function Tarefas() {
             </div>
             <div className="modal-body">
                {taskHistory.length === 0 ? (
-                 <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                   Nenhuma alteração registrada ainda.
-                   <br/><small>Alterações de criação, edição e exclusão aparecerão aqui.</small>
-                 </p>
+                 <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>Nenhuma alteração registrada ainda.</p>
                ) : (
-                 <ul style={{ listStyle: 'none', padding: 0 }}>
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
                     {taskHistory.map((h: any, index) => (
-                      <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' ? 'var(--success)' : 'var(--accent)' }}>
-                              {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
-                            </span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                              {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
-                            </span>
+                      <li key={index} style={{ padding: '1rem 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>{formatHistoryValue(h)}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Por: {h.userName || 'Sistema'} • {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}</div>
                          </div>
-                         {h.action === 'update' && h.newValue && (
-                           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                             {(() => {
-                               try {
-                                 const oldVal = h.oldValue ? JSON.parse(h.oldValue) : {};
-                                 const newVal = JSON.parse(h.newValue);
-                                 const changes = Object.keys(newVal).filter(k => JSON.stringify(oldVal[k]) !== JSON.stringify(newVal[k]));
-                                 return changes.map(k => `${k}: ${oldVal[k] || '-'} → ${newVal[k]}`).join(', ');
-                               } catch { return ''; }
-                             })()}
-                           </div>
+                         {isAdmin && (
+                           <button onClick={() => handleDeleteHistory(h.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '8px', cursor: 'pointer', opacity: 0.6 }} title="Excluir"><Trash2 size={18} /></button>
                          )}
-                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                           Por: {h.userName || 'Sistema'}
-                         </div>
                       </li>
                     ))}
-                 </ul>
+                  </ul>
                )}
             </div>
             <div className="modal-footer">
@@ -467,24 +456,20 @@ export default function Tarefas() {
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}>
           <div className="modal-content" style={{ width: '500px' }}>
             <div className="modal-header">
-              <h3>{editingTask ? 'Editar Atividade Global' : 'Nova Atividade Global'}</h3>
+              <h3>{editingTask ? 'Editar Atividade' : 'Nova Atividade'}</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20}/></button>
             </div>
-            
             <div className="modal-body">
               <div className="link-project-toggle">
                 <div>
                   <h4 style={{ margin: 0, fontSize: '14px' }}>Vincular a Projeto?</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                    {isLinked ? 'Tarefa fará parte de um projeto.' : 'Tarefa avulsa/solta sem projeto.'}
-                  </p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)' }}>{isLinked ? 'Tarefa fará parte de um projeto.' : 'Tarefa avulsa/solta sem projeto.'}</p>
                 </div>
                 <label className="toggle-switch">
                   <input type="checkbox" checked={isLinked} onChange={(e) => setIsLinked(e.target.checked)} />
                   <span className="slider"></span>
                 </label>
               </div>
-
               {isLinked && (
                 <div className="form-group">
                   <label>Selecione o Projeto *</label>
@@ -494,20 +479,16 @@ export default function Tarefas() {
                   </select>
                 </div>
               )}
-
               <div className="form-group">
                 <label>Título da Atividade *</label>
                 <input type="text" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} placeholder="Título..." />
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Responsável</label>
                   <select value={taskForm.assigneeId} onChange={e => setTaskForm({...taskForm, assigneeId: e.target.value})}>
                     <option value="">Não atribuído</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                    ))}
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -515,7 +496,6 @@ export default function Tarefas() {
                   <input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({...taskForm, dueDate: e.target.value})} />
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Meta (Quantidade)</label>
@@ -527,7 +507,6 @@ export default function Tarefas() {
                 </div>
               </div>
             </div>
-
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={handleSave}>Salvar Alterações</button>

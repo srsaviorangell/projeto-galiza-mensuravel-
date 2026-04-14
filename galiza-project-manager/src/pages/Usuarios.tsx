@@ -75,39 +75,44 @@ export default function Usuarios() {
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.email.trim()) return;
 
-    if (editingUser) {
-      const updates = {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        phone: formData.phone,
-        specialty: formData.specialty,
-        status: formData.status
-      };
-      if (formData.password) {
-        updates.password = formData.password;
+      try {
+        if (editingUser) {
+          const updates = {
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            phone: formData.phone,
+            specialty: formData.specialty,
+            status: formData.status
+          };
+          if (formData.password) {
+            updates.password = formData.password;
+          }
+          await updateUser(editingUser, updates);
+        } else {
+          if (!formData.password) {
+            alert('Senha é obrigatória para novos usuários');
+            return;
+          }
+          await addUser({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            phone: formData.phone,
+            specialty: formData.specialty,
+            status: formData.status,
+            created_at: new Date().toISOString()
+          });
+        }
+        setIsModalOpen(false);
+        setEditingUser(null);
+        setFormData({ name: '', email: '', password: '', role: 'user', phone: '', specialty: '', status: 'Ativo' });
+      } catch (error: any) {
+        console.error("Erro ao salvar usuário:", error);
+        alert("Erro ao salvar usuário: " + (error.message || "Verifique se o e-mail já existe."));
       }
-      await updateUser(editingUser, updates);
-    } else {
-      if (!formData.password) {
-        alert('Senha é obrigatória para novos usuários');
-        return;
-      }
-      await addUser({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        phone: formData.phone,
-        specialty: formData.specialty,
-        status: formData.status,
-        createdAt: new Date().toISOString()
-      });
-    }
-    setIsModalOpen(false);
-    setEditingUser(null);
-    setFormData({ name: '', email: '', password: '', role: 'user' });
-  };
+    };
 
   const handleConfirmDelete = async (id) => {
     await deleteUser(id);

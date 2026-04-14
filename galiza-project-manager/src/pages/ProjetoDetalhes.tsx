@@ -6,12 +6,10 @@ import { ArrowLeft, Edit2, Trash2, TrendingUp, CheckCircle2, Clock, Target, Plus
 import { CircularProgress } from '../components/CircularProgress';
 import './ProjetoDetalhes.css';
 
-
-
 export default function ProjetoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees } = useContext(AppContext);
+  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, deleteHistory, isAdmin, getAllAssignees } = useContext(AppContext);
   
   // States
   const [executionModalTask, setExecutionModalTask] = useState<any>(null);
@@ -126,54 +124,76 @@ export default function ProjetoDetalhes() {
     const qty = Number(executionForm.quantidade);
     if (!qty || qty <= 0) return alert('Quantidade inválida.');
     
-    // Get geolocation if possible
-    let location = null;
     try {
-      if ("geolocation" in navigator) {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
+      // Get geolocation if possible
+      let location = null;
+      try {
+        if ("geolocation" in navigator) {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          location = {
+            lat: (position as any).coords.latitude,
+            lng: (position as any).coords.longitude
+          };
+        }
+      } catch (err) {
+        console.warn("Could not get location:", err);
       }
-    } catch (err) {
-      console.warn("Could not get location:", err);
+
+      const currentTask = tasks.find(t => t.id === executionModalTask.id);
+      if(!currentTask) return;
+
+      const newCurrent = (currentTask.measurementCurrent || 0) + qty;
+      const updatedExecutions = [...(currentTask.executions || []), {
+         id: Date.now(),
+         colaboradorId: executionForm.colaboradorId,
+         quantidade: qty,
+         data: executionForm.data,
+         observacao: executionForm.observacao,
+         location: location,
+         timestamp: new Date().toISOString()
+      }];
+
+      await updateTask(currentTask.id, {
+         measurementCurrent: newCurrent,
+         executions: updatedExecutions
+      });
+      setExecutionModalTask(null);
+      setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
+    } catch (error: any) {
+      console.error(error);
+      alert("Erro ao registrar atividade: " + (error.message || "Verifique sua conexão ou tabela 'tasks'"));
     }
-
-    const currentTask = tasks.find(t => t.id === executionModalTask.id);
-    if(!currentTask) return;
-
-    const newCurrent = (currentTask.measurementCurrent || 0) + qty;
-    const updatedExecutions = [...(currentTask.executions || []), {
-       id: Date.now(),
-       colaboradorId: executionForm.colaboradorId,
-       quantidade: qty,
-       data: executionForm.data,
-       observacao: executionForm.observacao,
-       location: location,
-       timestamp: new Date().toISOString()
-    }];
-
-    await updateTask(currentTask.id, {
-       measurementCurrent: newCurrent,
-       executions: updatedExecutions,
-       status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
-    });
-    setExecutionModalTask(null);
-    setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
   };
 
   const handleCreateTask = async () => {
     if (!taskForm.title) return alert("Título obrigatório!");
-    if (editingTask) {
-       await updateTask(editingTask.id, taskForm);
-    } else {
-       await addTask({ ...taskForm, projectId: project.id });
+    try {
+      if (editingTask) {
+         await updateTask(editingTask.id, taskForm);
+      } else {
+         await addTask({ ...taskForm, projectId: project.id });
+      }
+      setIsTaskModalOpen(false);
+      setEditingTask(null);
+      // Reset form
+      setTaskForm({
+        title: '',
+        description: '',
+        priority: 'Média',
+        status: 'A Fazer',
+        assigneeId: '',
+        dueDate: '',
+        measurementTarget: 1,
+        measurementCurrent: 0,
+        measurementType: 'UN',
+        color: 'var(--accent)'
+      });
+    } catch (error: any) {
+      console.error(error);
+      alert("Erro ao salvar atividade: " + (error.message || "Erro desconhecido no Supabase"));
     }
-    setIsTaskModalOpen(false);
-    setEditingTask(null);
   };
 
   const openEditTask = (task: any) => {
@@ -216,10 +236,56 @@ export default function ProjetoDetalhes() {
      await updateProject(project.id, { links: updatedLinks });
   };
 
+  const handleDeleteHistory = async (historyId: string) => {
+    if (!window.confirm('Deseja excluir este registro de atividade?')) return;
+    const success = await (deleteHistory as any)(historyId);
+    if (success && historyModalTask) {
+       const changes = await (getHistory as any)('task', historyModalTask.id);
+       setTaskHistory(changes || []);
+    }
+  };
+
+  const formatHistoryValue = (h: any) => {
+    try {
+      if (h.action === 'create') return 'Atividade Criada';
+      if (h.action === 'delete') return 'Atividade Excluída';
+      
+      let newValue = h.newValue;
+      let oldValue = h.oldValue;
+      
+      if (typeof newValue === 'string' && (newValue.startsWith('{') || newValue.startsWith('['))) newValue = JSON.parse(newValue);
+      if (typeof oldValue === 'string' && (oldValue.startsWith('{') || oldValue.startsWith('['))) oldValue = JSON.parse(oldValue);
+
+      if (newValue?.measurementCurrent !== undefined && oldValue?.measurementCurrent !== undefined) {
+        const diff = Number(newValue.measurementCurrent) - Number(oldValue.measurementCurrent);
+        const unit = newValue.measurementType || 'UN';
+        if (diff > 0) return `Lançou +${diff} ${unit} (Total: ${newValue.measurementCurrent}/${newValue.measurementTarget})`;
+        if (diff < 0) return `Removeu ${Math.abs(diff)} ${unit} (Total: ${newValue.measurementCurrent}/${newValue.measurementTarget})`;
+      }
+
+      if (h.action === 'update' && newValue?.status && oldValue?.status && newValue.status !== oldValue.status) {
+        return `Atividade movida para: ${newValue.status}`;
+      }
+
+      return 'Alteração de dados';
+    } catch (e) {
+      return 'Alteração registrada';
+    }
+  };
+
   const openCreateTask = () => {
     setTaskForm(emptyTask);
     setIsTaskModalOpen(true);
   };
+
+  const handleDeleteProject = async () => {
+    if (window.confirm('Excluir este projeto permanentemente?')) {
+      await (deleteProject as any)(project.id);
+      navigate('/projetos');
+    }
+  };
+
+  const { deleteProject } = useContext(AppContext);
 
   return (
     <div className="page-container animate-fadeIn">
@@ -235,7 +301,7 @@ export default function ProjetoDetalhes() {
           </div>
           <div className="pd-header-actions">
             <button className="btn-ghost" onClick={openProjectEdit}><Edit2 size={16}/> Editar Projeto</button>
-            <button className="btn-ghost btn-ghost-danger"><Trash2 size={16}/> Excluir Projeto</button>
+            <button className="btn-ghost btn-ghost-danger" onClick={handleDeleteProject}><Trash2 size={16}/> Excluir Projeto</button>
           </div>
         </div>
 
@@ -389,10 +455,6 @@ export default function ProjetoDetalhes() {
                         <div className="rtc-user-avatar">{getAssigneeName(task.assigneeId).charAt(0).toUpperCase()}</div>
                         <span>{getAssigneeName(task.assigneeId)}</span>
                       </div>
-                      <div className="rtc-user-assignee" style={{ marginTop: '8px' }}>
-                        <div className="rtc-user-avatar">{getAssigneeName(task.assigneeId).charAt(0).toUpperCase()}</div>
-                        <span>{getAssigneeName(task.assigneeId)}</span>
-                      </div>
                   </div>
 
                   {/* Tier 3: Progress */}
@@ -538,38 +600,32 @@ export default function ProjetoDetalhes() {
                {taskHistory.length === 0 ? (
                  <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
                    Nenhuma alteração registrada ainda.
-                   <br/><small>Alterações de criação, edição e exclusão aparecerão aqui.</small>
+                   <br/><small>Alterações de produção e status aparecerão aqui.</small>
                  </p>
                ) : (
-                 <ul style={{ listStyle: 'none', padding: 0 }}>
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
                     {taskHistory.map((h: any, index) => (
-                      <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' ? 'var(--success)' : 'var(--accent)' }}>
-                              {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
-                            </span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                              {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
-                            </span>
+                      <li key={index} style={{ padding: '1rem 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                               {formatHistoryValue(h)}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                               Por: {h.userName || 'Sistema'} • {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
+                            </div>
                          </div>
-                         {h.action === 'update' && h.newValue && (
-                           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                             {(() => {
-                               try {
-                                 const oldVal = h.oldValue ? JSON.parse(h.oldValue) : {};
-                                 const newVal = JSON.parse(h.newValue);
-                                 const changes = Object.keys(newVal).filter(k => JSON.stringify(oldVal[k]) !== JSON.stringify(newVal[k]));
-                                 return changes.map(k => `${k}: ${oldVal[k] || '-'} → ${newVal[k]}`).join(', ');
-                               } catch { return ''; }
-                             })()}
-                           </div>
+                         {isAdmin && (
+                           <button 
+                             onClick={() => handleDeleteHistory(h.id)} 
+                             style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '8px', cursor: 'pointer', opacity: 0.6 }}
+                             title="Excluir lançamento"
+                           >
+                             <Trash2 size={18} />
+                           </button>
                          )}
-                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                           Por: {h.userName || 'Sistema'}
-                         </div>
                       </li>
                     ))}
-                 </ul>
+                  </ul>
                )}
             </div>
             <div className="modal-footer">
