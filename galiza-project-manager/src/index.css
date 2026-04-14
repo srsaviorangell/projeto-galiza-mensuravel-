@@ -62,6 +62,37 @@
   --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark Theme */
+[data-theme="dark"] {
+  --primary: #0f172a;
+  --primary-light: #1e293b;
+  --primary-dark: #020617;
+
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --card-bg: #1e293b;
+  --border: #334155;
+  --border-light: #475569;
+
+  --text: #cbd5e1;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-inverse: #0f172a;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.15);
+  --shadow-card: 0px 4px 20px rgba(0, 0, 0, 0.4);
+
+  --accent-light: #2d1f1a;
+  --success-light: #052e16;
+  --danger-light: #450a0a;
+  --warning-light: #451a03;
+  --info-light: #172554;
+}
+
 *,
 *::before,
 *::after {
@@ -174,4 +205,17 @@ textarea {
 
 .animate-slideUp {
   animation: slideUp 0.4s ease forwards;
+}
+
+/* Fluid Typography & Spacing */
+@media (max-width: 768px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 12px;
+  }
 }

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "build:electron": "vite build && electron-builder",
     "preview": "vite preview"
   },
@@ -24,6 +24,10 @@
     "wait-on": "^9.0.5"
   },
   "dependencies": {
+    "dexie": "^4.4.2",
+    "dexie-react-hooks": "^4.4.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.8.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
