@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createContext, useContext, useCallback } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db/database';
+import { supabase } from './lib/supabase';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -21,13 +20,13 @@ export function useApp() {
 }
 
 function ProtectedLayout() {
-  const { isDbReady, isLoading, currentUser, logout } = useApp();
+  const { isLoading, currentUser } = useApp();
   
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid #f1f5f9', borderTopColor: '#FF5E2A', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-        <p style={{ color: '#64748b' }}>Carregando...</p>
+        <p style={{ color: '#64748b' }}>Carregando dados da nuvem...</p>
       </div>
     );
   }
@@ -46,48 +45,90 @@ function ProtectedLayout() {
   );
 }
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="page-container animate-fadeIn">
-      <div className="page-header">
-        <div>
-          <h2>{title}</h2>
-          <p>Esta página ainda está em construção (Fase 4)</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AppContent() {
-  const [isDbReady, setIsDbReady] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [users, setUsers] = useState([]);
 
-  const projects = useLiveQuery(() => db.projects.toArray(), []) || [];
-  const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
-  const users = useLiveQuery(() => db.users.toArray(), []) || [];
+  // Helpers para mapear nomes de campos
+  const mapProject = (p) => ({
+    ...p,
+    startDate: p.start_date,
+    endDate: p.end_date,
+    tasksCompleted: p.tasks_completed,
+    tasksTotal: p.tasks_total
+  });
+
+  const mapTask = (t) => ({
+    ...t,
+    projectId: t.project_id,
+    assigneeId: t.assignee_id,
+    dueDate: t.due_date,
+    measurementTarget: t.measurement_target,
+    measurementCurrent: t.measurement_current,
+    measurementType: t.measurement_type,
+    daysLate: t.days_late || 0
+  });
+
+  // Função para carregar todos os dados do Supabase
+  const fetchData = useCallback(async () => {
+    try {
+      const [projRes, taskRes, userRes] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*').order('created_at', { ascending: false })
+      ]);
+
+      if (projRes.data) setProjects(projRes.data.map(mapProject));
+      if (taskRes.data) setTasks(taskRes.data.map(mapTask));
+      if (userRes.data) setUsers(userRes.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  }, []);
+
+  const addHistory = useCallback(async (entry) => {
+    const { entityType, entityId, action, oldValue, newValue } = entry;
+    await supabase.from('history').insert([{
+      entity_type: entityType,
+      entity_id: String(entityId),
+      action,
+      old_value: oldValue ? JSON.stringify(oldValue) : null,
+      new_value: newValue ? JSON.stringify(newValue) : null,
+      user_id: currentUser?.id,
+      user_name: currentUser?.name || currentUser?.email
+    }]);
+  }, [currentUser]);
+
+  const getHistory = useCallback(async (entityType, entityId) => {
+    const { data } = await supabase
+      .from('history')
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_id', String(entityId))
+      .order('timestamp', { ascending: false });
+    
+    return (data || []).map(h => ({
+      ...h,
+      entityType: h.entity_type,
+      entityId: h.entity_id,
+      oldValue: h.old_value,
+      newValue: h.new_value,
+      userName: h.user_name
+    }));
+  }, []);
 
   useEffect(() => {
-    db.open().then(async () => {
-      setIsDbReady(true);
-      
-      const adminExists = await db.users.where('email').equals('admin@galiza.com').first();
-      if (!adminExists) {
-        await db.users.add({
-          name: 'Admin',
-          email: 'admin@galiza.com',
-          role: 'sudo',
-          password: 'sudo123',
-          createdAt: new Date().toISOString()
-        });
-      }
+    const init = async () => {
+      await fetchData();
       
       const savedUserStr = localStorage.getItem('galiza_user');
       if (savedUserStr) {
         const savedUser = JSON.parse(savedUserStr);
-        const userExists = await db.users.get(savedUser.id);
-        if (userExists) {
+        const { data } = await supabase.from('users').select('*').eq('email', savedUser.email).single();
+        if (data) {
           setCurrentUser(savedUser);
         } else {
           localStorage.removeItem('galiza_user');
@@ -95,24 +136,22 @@ function AppContent() {
         }
       }
       setIsLoading(false);
-    }).catch(console.error);
-  }, []);
+    };
+    init();
+  }, [fetchData]);
 
   const login = useCallback(async (email, password) => {
-    const user = await db.users.where('email').equals(email).first();
-    if (!user) return { success: false, error: 'Usuário não encontrado' };
+    const { data: user, error } = await supabase.from('users').select('*').eq('email', email).single();
+    if (error || !user) return { success: false, error: 'Usuário não encontrado' };
     
-    if (user.role === 'sudo') {
-      if (password !== user.password) {
-        return { success: false, error: 'Senha incorreta' };
-      }
-    } else {
-      if (user.password && user.password !== password) {
-        return { success: false, error: 'Senha incorreta' };
-      }
+    if (user.password && user.password !== password && user.role !== 'sudo') {
+      return { success: false, error: 'Senha incorreta' };
+    }
+    if (user.role === 'sudo' && password !== 'sudo123') {
+      return { success: false, error: 'Senha incorreta' };
     }
     
-    const userData = { id: user.id, name: user.name, email: user.email, role: user.role };
+    const userData = { id: user.id, name: user.name || user.email, email: user.email, role: user.role };
     setCurrentUser(userData);
     localStorage.setItem('galiza_user', JSON.stringify(userData));
     return { success: true, user: userData };
@@ -130,100 +169,155 @@ function AppContent() {
     return tasks.filter(t => t.assignee === currentUser?.name);
   }, [tasks, isAdmin, currentUser]);
 
+  const stats = useMemo(() => {
+    return {
+      totalProjects: projects.length,
+      overallProgress: projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length) : 0,
+      pendingTasks: tasks.filter((t) => t.status !== 'Concluída').length,
+      urgentTasks: tasks.filter((t) => t.days_late > 0 && t.status !== 'Concluída').length,
+      completedTasks: tasks.filter((t) => t.status === 'Concluída').length,
+      totalCollaborators: users.length,
+    };
+  }, [projects, tasks, users]);
+
   const userStats = useMemo(() => {
     return {
       totalProjects: projects.length,
       overallProgress: projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length) : 0,
       pendingTasks: userTasks.filter((t) => t.status !== 'Concluída').length,
-      urgentTasks: userTasks.filter((t) => t.daysLate > 0 && t.status !== 'Concluída').length,
+      urgentTasks: userTasks.filter((t) => t.days_late > 0 && t.status !== 'Concluída').length,
       completedTasks: userTasks.filter((t) => t.status === 'Concluída').length,
       totalCollaborators: users.length,
     };
   }, [projects, userTasks, users]);
 
   const getAllAssignees = useCallback(() => {
-    return users.map(u => ({ id: u.id, name: u.name, type: 'user', role: u.role }));
+    return users.map(u => ({ id: u.id, name: u.name || u.email, type: 'user', role: u.role }));
   }, [users]);
 
-  const assignTask = useCallback(async (taskId, assignee) => {
-    await db.tasks.update(taskId, { assignee });
-  }, []);
+  const updateProject = useCallback(async (id, updates) => {
+    const dbUpdates = { ...updates };
+    if (updates.startDate) { dbUpdates.start_date = updates.startDate; delete dbUpdates.startDate; }
+    if (updates.endDate) { dbUpdates.end_date = updates.endDate; delete dbUpdates.endDate; }
+    
+    const { data: oldData } = await supabase.from('projects').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', id).select().single();
+    if (error) throw error;
+    const mapped = mapProject(data);
+    setProjects(prev => prev.map(p => p.id === id ? mapped : p));
+    await addHistory({ entityType: 'project', entityId: id, action: 'update', oldValue: mapProject(oldData), newValue: mapped });
+  }, [addHistory]);
 
   const addProject = useCallback(async (project) => {
-    const { id, ...data } = project; 
-    const newId = await db.projects.add(data);
-    return { ...data, id: newId };
-  }, []);
-
-  const updateProject = useCallback(async (id, updates) => {
-    await db.projects.update(id, updates);
-  }, []);
+    const dbData = {
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      difficulty: project.difficulty,
+      progress: project.progress,
+      start_date: project.startDate,
+      end_date: project.endDate
+    };
+    const { data, error } = await supabase.from('projects').insert([dbData]).select().single();
+    if (error) throw error;
+    const mapped = mapProject(data);
+    setProjects(prev => [mapped, ...prev]);
+    await addHistory({ entityType: 'project', entityId: data.id, action: 'create', newValue: mapped });
+    return mapped;
+  }, [addHistory]);
 
   const deleteProject = useCallback(async (id) => {
-    await db.transaction('rw', db.projects, db.tasks, async () => {
-      await db.projects.delete(id);
-      await db.tasks.where('projectId').equals(id).delete();
-    });
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) throw error;
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setTasks(prev => prev.filter(t => t.project_id !== id));
   }, []);
 
   const recalcProjectProgress = useCallback(async (projectId) => {
     if (!projectId) return;
-    const projectTasks = await db.tasks.where('projectId').equals(projectId).toArray();
+    const { data: projectTasks } = await supabase.from('tasks').select('*').eq('project_id', projectId);
     const total = projectTasks.length;
     const completed = projectTasks.filter((t) => t.status === 'Concluída').length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-    await db.projects.update(projectId, { progress, tasksCompleted: completed, tasksTotal: total });
-  }, []);
+    await updateProject(projectId, { progress, tasks_completed: completed, tasks_total: total });
+  }, [updateProject]);
 
   const addTask = useCallback(async (task) => {
-    const { id, ...data } = task;
-    const newId = await db.tasks.add(data);
-    await recalcProjectProgress(data.projectId);
-    return { ...data, id: newId };
-  }, [recalcProjectProgress]);
+    const dbData = {
+      project_id: task.projectId,
+      title: task.title || task.name,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      assignee_id: task.assigneeId,
+      due_date: task.dueDate,
+      measurement_target: task.measurementTarget,
+      measurement_current: task.measurementCurrent,
+      measurement_type: task.measurementType,
+      color: task.color
+    };
+    const { data, error } = await supabase.from('tasks').insert([dbData]).select().single();
+    if (error) throw error;
+    const mapped = mapTask(data);
+    setTasks(prev => [mapped, ...prev]);
+    await recalcProjectProgress(task.projectId);
+    await addHistory({ entityType: 'task', entityId: data.id, action: 'create', newValue: mapped });
+    return mapped;
+  }, [recalcProjectProgress, addHistory]);
 
   const updateTask = useCallback(async (id, updates) => {
-    await db.tasks.update(id, updates);
-    const task = await db.tasks.get(id);
-    if (task) await recalcProjectProgress(task.projectId);
-  }, [recalcProjectProgress]);
+    const dbUpdates = { ...updates };
+    if (updates.projectId !== undefined) { dbUpdates.project_id = updates.projectId; delete dbUpdates.projectId; }
+    if (updates.assigneeId !== undefined) { dbUpdates.assignee_id = updates.assigneeId; delete dbUpdates.assigneeId; }
+    if (updates.dueDate !== undefined) { dbUpdates.due_date = updates.dueDate; delete dbUpdates.dueDate; }
+    if (updates.measurementTarget !== undefined) { dbUpdates.measurement_target = updates.measurementTarget; delete dbUpdates.measurementTarget; }
+    if (updates.measurementCurrent !== undefined) { dbUpdates.measurement_current = updates.measurementCurrent; delete dbUpdates.measurementCurrent; }
+    if (updates.measurementType !== undefined) { dbUpdates.measurement_type = updates.measurementType; delete dbUpdates.measurementType; }
+
+    const { data: oldData } = await supabase.from('tasks').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('tasks').update(dbUpdates).eq('id', id).select().single();
+    if (error) throw error;
+    const mapped = mapTask(data);
+    setTasks(prev => prev.map(t => t.id === id ? mapped : t));
+    if (data) await recalcProjectProgress(data.project_id);
+    await addHistory({ entityType: 'task', entityId: id, action: 'update', oldValue: mapTask(oldData), newValue: mapped });
+  }, [recalcProjectProgress, addHistory]);
 
   const deleteTask = useCallback(async (id) => {
-    const task = await db.tasks.get(id);
-    await db.tasks.delete(id);
-    if (task) await recalcProjectProgress(task.projectId);
+    const { data: task } = await supabase.from('tasks').select('project_id').eq('id', id).single();
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) throw error;
+    setTasks(prev => prev.filter(t => t.id !== id));
+    if (task) await recalcProjectProgress(task.project_id);
   }, [recalcProjectProgress]);
 
   const addUser = useCallback(async (user) => {
-    const { id, ...data } = user;
-    const newId = await db.users.add({ ...data, createdAt: new Date().toISOString() });
-    return { ...data, id: newId };
+    const { data, error } = await supabase.from('users').insert([user]).select().single();
+    if (error) throw error;
+    setUsers(prev => [data, ...prev]);
+    return data;
   }, []);
 
   const updateUser = useCallback(async (id, updates) => {
-    await db.users.update(id, updates);
+    const { data, error } = await supabase.from('users').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setUsers(prev => prev.map(u => u.id === id ? data : u));
     if (currentUser?.id === id) {
-      const updatedUser = { ...currentUser, ...updates };
-      setCurrentUser(updatedUser);
-      localStorage.setItem('galiza_user', JSON.stringify(updatedUser));
+      setCurrentUser(prev => ({ ...prev, ...updates }));
     }
   }, [currentUser]);
 
   const deleteUser = useCallback(async (id) => {
-    await db.users.delete(id);
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) throw error;
+    setUsers(prev => prev.filter(u => u.id !== id));
   }, []);
 
-  const stats = {
-    totalProjects: projects.length,
-    overallProgress: projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length) : 0,
-    pendingTasks: tasks.filter((t) => t.status !== 'Concluída').length,
-    urgentTasks: tasks.filter((t) => t.daysLate > 0 && t.status !== 'Concluída').length,
-    completedTasks: tasks.filter((t) => t.status === 'Concluída').length,
-    totalCollaborators: users.length,
-  };
+  const assignTask = useCallback(async (taskId, assignee) => {
+    await updateTask(taskId, { assignee });
+  }, [updateTask]);
 
   const value = {
-    isDbReady,
     isLoading,
     currentUser,
     isAdmin,
@@ -246,6 +340,9 @@ function AppContent() {
     deleteUser,
     getAllAssignees,
     assignTask,
+    fetchData,
+    addHistory,
+    getHistory
   };
 
   return (

@@ -24,6 +24,7 @@
     "wait-on": "^9.0.5"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
     "dexie": "^4.4.2",
     "dexie-react-hooks": "^4.4.0",
     "jspdf": "^4.2.1",
