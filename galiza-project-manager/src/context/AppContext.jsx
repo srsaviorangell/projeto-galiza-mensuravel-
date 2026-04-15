@@ -8,13 +8,14 @@ export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync session
   useEffect(() => {
     const saved = localStorage.getItem('galiza_user');
     if (saved) {
       try {
         const user = JSON.parse(saved);
-        setCurrentUser(user);
+        if (user && user.id) {
+          setCurrentUser(user);
+        }
       } catch (e) {
         console.error("Session parse error");
       }
@@ -23,11 +24,16 @@ export function AppProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const user = await db.users.where('email').equals(email).first();
-    if (user && user.password === password) {
-      setCurrentUser(user);
-      localStorage.setItem('galiza_user', JSON.stringify(user));
-      return true;
+    if (!email || !password) return false;
+    try {
+      const user = await db.users.where('email').equals(email).first();
+      if (user && user.password === password) {
+        setCurrentUser(user);
+        localStorage.setItem('galiza_user', JSON.stringify(user));
+        return true;
+      }
+    } catch (e) {
+      console.error("Login error:", e);
     }
     return false;
   };
@@ -37,19 +43,22 @@ export function AppProvider({ children }) {
     localStorage.removeItem('galiza_user');
   };
 
-  // Global Data
   const projects = useLiveQuery(() => db.projects.toArray(), []) || [];
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
   const users = useLiveQuery(() => db.users.toArray(), []) || [];
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'sudo';
 
-  // Stats
+  const safeFilterTasks = (taskList, status) => {
+    if (!Array.isArray(taskList)) return [];
+    return taskList.filter(t => t && t.status === status);
+  };
+
   const stats = {
-    totalProjects: projects.length,
-    pendingTasks: tasks.filter(t => t.status !== 'Concluída').length,
-    completedTasks: tasks.filter(t => t.status === 'Concluída').length,
-    totalUsers: users.length,
+    totalProjects: Array.isArray(projects) ? projects.length : 0,
+    pendingTasks: safeFilterTasks(tasks, 'A Fazer').length,
+    completedTasks: safeFilterTasks(tasks, 'Concluída').length,
+    totalUsers: Array.isArray(users) ? users.length : 0,
   };
 
   const value = {
@@ -59,20 +68,46 @@ export function AppProvider({ children }) {
     isAdmin,
     login,
     logout,
-    projects,
-    tasks,
-    users,
+    projects: projects || [],
+    tasks: tasks || [],
+    users: users || [],
     stats,
-    // Unified functions
-    addProject: (data) => db.projects.add(data),
-    updateProject: (id, updates) => db.projects.update(id, updates),
-    deleteProject: (id) => db.projects.delete(id),
-    addTask: (data) => db.tasks.add(data),
-    updateTask: (id, updates) => db.tasks.update(id, updates),
-    deleteTask: (id) => db.tasks.delete(id),
-    addUser: (data) => db.users.add(data),
-    updateUser: (id, updates) => db.users.update(id, updates),
-    deleteUser: (id) => db.users.delete(id),
+    addProject: async (data) => {
+      if (!data || !data.name) return null;
+      try { return await db.projects.add(data); } catch (e) { console.error("addProject error:", e); return null; }
+    },
+    updateProject: async (id, updates) => {
+      if (!id || !updates) return;
+      try { await db.projects.update(id, updates); } catch (e) { console.error("updateProject error:", e); }
+    },
+    deleteProject: async (id) => {
+      if (!id) return;
+      try { await db.projects.delete(id); } catch (e) { console.error("deleteProject error:", e); }
+    },
+    addTask: async (data) => {
+      if (!data || !data.title) return null;
+      try { return await db.tasks.add(data); } catch (e) { console.error("addTask error:", e); return null; }
+    },
+    updateTask: async (id, updates) => {
+      if (!id || !updates) return;
+      try { await db.tasks.update(id, updates); } catch (e) { console.error("updateTask error:", e); }
+    },
+    deleteTask: async (id) => {
+      if (!id) return;
+      try { await db.tasks.delete(id); } catch (e) { console.error("deleteTask error:", e); }
+    },
+    addUser: async (data) => {
+      if (!data || !data.name) return null;
+      try { return await db.users.add(data); } catch (e) { console.error("addUser error:", e); return null; }
+    },
+    updateUser: async (id, updates) => {
+      if (!id || !updates) return;
+      try { await db.users.update(id, updates); } catch (e) { console.error("updateUser error:", e); }
+    },
+    deleteUser: async (id) => {
+      if (!id) return;
+      try { await db.users.delete(id); } catch (e) { console.error("deleteUser error:", e); }
+    },
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
