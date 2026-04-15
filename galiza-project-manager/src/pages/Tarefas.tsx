@@ -15,11 +15,20 @@ export default function Tarefas() {
   const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, addHistory, getHistory } = useContext(AppContext);
   const navigate = useNavigate();
   
-  const displayedTasks = isAdmin ? tasks : userTasks;
+  const [filterProject, setFilterProject] = useState('all'); // 'all', 'avulsa', or projectId
+  
+  const displayedTasks = useMemo(() => {
+    let base = isAdmin ? tasks : userTasks;
+    if (filterProject === 'avulsa') {
+      base = base.filter((t: any) => !t.projectId);
+    } else if (filterProject !== 'all' && filterProject !== '') {
+      base = base.filter((t: any) => t.projectId === Number(filterProject));
+    }
+    return base;
+  }, [tasks, userTasks, filterProject, isAdmin]);
   
   // State
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
@@ -57,6 +66,7 @@ export default function Tarefas() {
     status: 'A Fazer',
     projectId: '', // Empty means avulsa
     assignee: '',
+    assigneeId: '',
     dueDate: '',
     measurementTarget: 1,
     measurementCurrent: 0,
@@ -70,16 +80,11 @@ export default function Tarefas() {
   const filteredTasks = useMemo(() => {
     return displayedTasks.filter(t => {
       const matchSearch = (t.title || t.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchProject = filterProject === 'all' 
-        ? true 
-        : filterProject === 'standalone' 
-          ? !t.projectId 
-          : t.projectId === Number(filterProject);
       const matchStatus = filterStatus === 'all' ? true : t.status === filterStatus;
       
-      return matchSearch && matchProject && matchStatus;
+      return matchSearch && matchStatus;
     });
-  }, [displayedTasks, searchTerm, filterProject, filterStatus]);
+  }, [displayedTasks, searchTerm, filterStatus]);
 
   // Handlers
   const handleOpenModal = (task: any = null) => {
@@ -100,28 +105,38 @@ export default function Tarefas() {
   };
 
   const handleSave = async () => {
-    if (!taskForm.title) return alert('Por favor, insira um título.');
+    if (!taskForm.title) {
+      return;
+    }
     
     const dataToSave = {
       ...taskForm,
-      projectId: isLinked ? Number(taskForm.projectId) : null,
-      assigneeId: taskForm.assigneeId
+      projectId: (isLinked && taskForm.projectId) ? Number(taskForm.projectId) : null,
+      assigneeId: taskForm.assigneeId || null
     };
 
-    if (editingTask) {
-      await updateTask(editingTask.id, dataToSave);
-    } else {
-      await addTask(dataToSave);
+
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, dataToSave);
+        setIsModalOpen(false);
+      } else {
+        await addTask(dataToSave);
+      }
+      
+      setIsModalOpen(false);
+      setEditingTask(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar atividade:', error);
     }
-    
-    setIsModalOpen(false);
-    setEditingTask(null);
   };
 
   const handleSaveExecution = async () => {
     if (!executionModalTask) return;
     const qty = Number(executionForm.quantidade);
-    if (!qty || qty <= 0) return alert('Quantidade inválida.');
+    if (!qty || qty <= 0) {
+      return;
+    }
     
     // Get geolocation if possible
     let location = null;
@@ -153,13 +168,16 @@ export default function Tarefas() {
        timestamp: new Date().toISOString()
     }];
 
-    await updateTask(currentTask.id, {
-       measurementCurrent: newCurrent,
-       executions: updatedExecutions,
-       status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
-    });
-    setExecutionModalTask(null);
-    setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
+    try {
+      await updateTask(currentTask.id, {
+         measurementCurrent: newCurrent,
+         executions: updatedExecutions,
+         status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
+      });
+setExecutionModalTask(null);
+      } catch (error: any) {
+        console.error('Erro ao registrar execução:', error);
+      }
   };
 
   const openEditTask = (task: any) => {
@@ -175,7 +193,11 @@ export default function Tarefas() {
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
-      await deleteTask(id);
+      try {
+        await deleteTask(id);
+        } catch (error: any) {
+        console.error('Erro ao excluir tarefa:', error);
+      }
     }
   };
 
@@ -255,9 +277,13 @@ export default function Tarefas() {
             onChange={(e) => setFilterProject(e.target.value)}
           >
             <option value="all">Todos os Projetos</option>
-            <option value="standalone">Apenas Avulsas</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="avulsa">Avulsas (Sem Projeto)</option>
+            {projects.map((p: any) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
+        </div>
+        <div className="filters-group">
           <select 
             className="filter-select"
             value={filterStatus}

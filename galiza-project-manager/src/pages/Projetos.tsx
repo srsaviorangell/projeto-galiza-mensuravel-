@@ -159,44 +159,54 @@ export default function Projetos() {
     setOpenMenuId(null);
   };
 
-  const handleSubmit = () => {
-    if (!formData.name.trim()) return;
-    if (editingProject) {
-      updateProject(editingProject, {
-        name: formData.name,
-        description: formData.description,
-        difficulty: formData.difficulty,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        files: formData.files,
-        links: formData.links,
-      });
-    } else {
-      addProject({
-        name: formData.name,
-        description: formData.description,
-        difficulty: formData.difficulty,
-        progress: 0,
-        tasksCompleted: 0,
-        tasksTotal: 0,
-        deadline: null,
-        deadlineStatus: 'normal',
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        status: 'Em andamento',
-        files: formData.files,
-        links: formData.links,
-      });
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      return;
     }
-    setIsModalOpen(false);
-    setEditingProject(null);
-    setFormData(emptyForm);
+    try {
+      if (editingProject) {
+        await updateProject(editingProject, {
+          name: formData.name,
+          description: formData.description,
+          difficulty: formData.difficulty,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          files: formData.files,
+          links: formData.links,
+        });
+      } else {
+        await addProject({
+          name: formData.name,
+          description: formData.description,
+          difficulty: formData.difficulty,
+          progress: 0,
+          tasksCompleted: 0,
+          tasksTotal: 0,
+          deadline: null,
+          deadlineStatus: 'normal',
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          status: 'Em andamento',
+          files: formData.files,
+          links: formData.links,
+        });
+      }
+      setIsModalOpen(false);
+      setEditingProject(null);
+      setFormData(emptyForm);
+    } catch (error: any) {
+      console.error('Erro ao salvar projeto:', error);
+    }
   };
 
-  const handleConfirmDelete = (id: number) => {
-    deleteProject(id);
-    setDeleteConfirm(null);
-    setOpenMenuId(null);
+  const handleConfirmDelete = async (id: number) => {
+    try {
+      await deleteProject(id);
+      setDeleteConfirm(null);
+      setOpenMenuId(null);
+    } catch (error: any) {
+      console.error('Erro ao excluir projeto:', error);
+    }
   };
 
   const handleFieldChange = (field: keyof ProjectFormData, value: any) => {

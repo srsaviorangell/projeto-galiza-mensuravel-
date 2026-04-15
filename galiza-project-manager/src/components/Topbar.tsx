@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, User, Moon, Sun, Menu, X, LogOut, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../App';
 import './Topbar.css';
@@ -15,11 +15,17 @@ interface Notification {
 }
 
 export default function Topbar() {
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { isAdmin, currentUser, logout, tasks, projects, users } = useApp();
+  const { isAdmin, currentUser, tasks, projects, users, logout } = useApp();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -186,7 +192,7 @@ export default function Topbar() {
             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </button>
           
-          {showNotifications && createPortal(
+          {showNotifications && (
             <div className="notification-dropdown">
               <div className="notification-header">
                 <h4>Notificações</h4>
@@ -218,8 +224,7 @@ export default function Topbar() {
                   ))
                 )}
               </div>
-            </div>,
-            document.body
+            </div>
           )}
         </div>
 
@@ -231,7 +236,7 @@ export default function Topbar() {
             <User size={20} />
           </button>
           
-          {showUserMenu && createPortal(
+          {showUserMenu && (
             <div className="user-dropdown">
               <div className="user-info">
                 <div className="user-avatar">{currentUser?.name?.charAt(0) || 'U'}</div>
@@ -245,13 +250,12 @@ export default function Topbar() {
                   {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                   {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
                 </button>
-                <button onClick={logout} className="logout-btn">
+                <button onClick={handleLogout} className="logout-btn">
                   <LogOut size={18} />
                   Sair
                 </button>
               </div>
-            </div>,
-            document.body
+            </div>
           )}
         </div>
 
@@ -280,7 +284,7 @@ export default function Topbar() {
                 {item.name}
               </NavLink>
             ))}
-            <button className="nav-link" onClick={logout} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <button className="nav-link" onClick={handleLogout} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                Sair
             </button>
           </nav>

@@ -124,7 +124,7 @@ export default function ProjetoDetalhes() {
   const handleSaveExecution = async () => {
     if (!executionModalTask) return;
     const qty = Number(executionForm.quantidade);
-    if (!qty || qty <= 0) return alert('Quantidade inválida.');
+    if (!qty || qty <= 0) return;
     
     // Get geolocation if possible
     let location = null;
@@ -166,14 +166,20 @@ export default function ProjetoDetalhes() {
   };
 
   const handleCreateTask = async () => {
-    if (!taskForm.title) return alert("Título obrigatório!");
-    if (editingTask) {
-       await updateTask(editingTask.id, taskForm);
-    } else {
-       await addTask({ ...taskForm, projectId: project.id });
+    if (!taskForm.title) {
+      return;
     }
-    setIsTaskModalOpen(false);
-    setEditingTask(null);
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, taskForm);
+      } else {
+        await addTask({ ...taskForm, projectId: project.id });
+      }
+      setIsTaskModalOpen(false);
+      setEditingTask(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar atividade:', error);
+    }
   };
 
   const openEditTask = (task: any) => {
@@ -195,26 +201,42 @@ export default function ProjetoDetalhes() {
   };
 
   const saveProjectEdit = async () => {
-     if(!projectForm.name) return alert("Preencha o nome do projeto!");
-     await updateProject(project.id, projectForm);
-     setIsEditProjectOpen(false);
+     if(!projectForm.name) {
+       return;
+     }
+     try {
+       await updateProject(project.id, projectForm);
+       setIsEditProjectOpen(false);
+     } catch (error: any) {
+       console.error('Erro ao atualizar projeto:', error);
+     }
   };
 
   const handleAddLink = async () => {
-     if(!linkForm.url || !linkForm.title) return alert('Insira URL e Título.');
-     const newLink = { ...linkForm, id: Date.now() };
-     const updatedLinks = [...(project.links || []), newLink];
-     await updateProject(project.id, { links: updatedLinks });
-     setLinkForm({ title: '', url: '', type: 'link' });
-     setIsLinkModalOpen(false);
-  };
-  
-  const handleRemoveLink = async (linkId: number) => {
-     const confirmDel = window.confirm('Remover este anexo do projeto?');
-     if(!confirmDel) return;
-     const updatedLinks = (project.links || []).filter((l:any) => l.id !== linkId);
-     await updateProject(project.id, { links: updatedLinks });
-  };
+if(!linkForm.url || !linkForm.title) {
+        return;
+      }
+      try {
+        const newLink = { ...linkForm, id: Date.now() };
+        const updatedLinks = [...(project.links || []), newLink];
+        await updateProject(project.id, { links: updatedLinks });
+        setLinkForm({ title: '', url: '', type: 'link' });
+        setIsLinkModalOpen(false);
+      } catch (error: any) {
+        console.error('Erro ao adicionar link:', error);
+      }
+   };
+   
+   const handleRemoveLink = async (linkId: number) => {
+      const confirmDel = window.confirm('Remover este anexo do projeto?');
+      if(!confirmDel) return;
+      try {
+        const updatedLinks = (project.links || []).filter((l:any) => l.id !== linkId);
+        await updateProject(project.id, { links: updatedLinks });
+      } catch (error: any) {
+        console.error('Erro ao remover link:', error);
+      }
+   };
 
   const openCreateTask = () => {
     setTaskForm(emptyTask);

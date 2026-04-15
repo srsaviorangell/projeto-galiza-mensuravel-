@@ -53,24 +53,35 @@ function AppContent() {
   const [users, setUsers] = useState([]);
 
   // Helpers para mapear nomes de campos
-  const mapProject = (p) => ({
-    ...p,
-    startDate: p.start_date,
-    endDate: p.end_date,
-    tasksCompleted: p.tasks_completed,
-    tasksTotal: p.tasks_total
-  });
+  const mapProject = (p) => {
+    if (!p) return null;
+    return {
+      ...p,
+      startDate: p.start_date,
+      endDate: p.end_date,
+      tasksCompleted: p.tasks_completed,
+      tasksTotal: p.tasks_total
+    };
+  };
 
-  const mapTask = (t) => ({
-    ...t,
-    projectId: t.project_id,
-    assigneeId: t.assignee_id,
-    dueDate: t.due_date,
-    measurementTarget: t.measurement_target,
-    measurementCurrent: t.measurement_current,
-    measurementType: t.measurement_type,
-    daysLate: t.days_late || 0
-  });
+  const mapTask = (t) => {
+    if (!t) return null;
+    return {
+      ...t,
+      id: t.id,
+      title: t.title,
+      name: t.title,
+      status: t.status,
+      projectId: t.project_id,
+      assigneeId: t.assignee_id,
+      dueDate: t.due_date,
+      measurementTarget: t.measurement_target || 1,
+      measurementCurrent: t.measurement_current || 0,
+      measurementType: t.measurement_type || 'UN',
+      daysLate: t.days_late || 0,
+      created_at: t.created_at
+    };
+  };
 
   // Função para carregar todos os dados do Supabase
   const fetchData = useCallback(async () => {
@@ -81,11 +92,21 @@ function AppContent() {
         supabase.from('users').select('*').order('created_at', { ascending: false })
       ]);
 
+      if (projRes.error) {
+        console.error('Erro ao carregar projetos:', projRes.error.message);
+      }
+      if (taskRes.error) {
+        console.error('Erro ao carregar tarefas:', taskRes.error.message);
+      }
+      if (userRes.error) {
+        console.error('Erro ao carregar usuários:', userRes.error.message);
+      }
+
       if (projRes.data) setProjects(projRes.data.map(mapProject));
       if (taskRes.data) setTasks(taskRes.data.map(mapTask));
       if (userRes.data) setUsers(userRes.data);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Erro ao carregar dados:', error);
     }
   }, []);
 
@@ -122,20 +143,30 @@ function AppContent() {
 
   useEffect(() => {
     const init = async () => {
-      await fetchData();
-      
-      const savedUserStr = localStorage.getItem('galiza_user');
-      if (savedUserStr) {
-        const savedUser = JSON.parse(savedUserStr);
-        const { data } = await supabase.from('users').select('*').eq('email', savedUser.email).single();
-        if (data) {
-          setCurrentUser(savedUser);
-        } else {
-          localStorage.removeItem('galiza_user');
-          setCurrentUser(null);
+      try {
+        await fetchData();
+        
+        const savedUserStr = localStorage.getItem('galiza_user');
+        if (savedUserStr) {
+          try {
+            const savedUser = JSON.parse(savedUserStr);
+            const { data, error } = await supabase.from('users').select('*').eq('email', savedUser.email).maybeSingle();
+            if (data && !error) {
+              setCurrentUser(data);
+            } else {
+              localStorage.removeItem('galiza_user');
+              setCurrentUser(null);
+            }
+          } catch (e) {
+            localStorage.removeItem('galiza_user');
+            setCurrentUser(null);
+          }
         }
+      } catch (error) {
+        console.error('Falha na inicialização:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     init();
   }, [fetchData]);
@@ -166,7 +197,7 @@ function AppContent() {
 
   const userTasks = useMemo(() => {
     if (isAdmin) return tasks;
-    return tasks.filter(t => t.assignee === currentUser?.name);
+    return tasks.filter(t => String(t.assigneeId) === String(currentUser?.id) || t.assignee === currentUser?.name);
   }, [tasks, isAdmin, currentUser]);
 
   const stats = useMemo(() => {
@@ -200,12 +231,14 @@ function AppContent() {
     if (updates.startDate) { dbUpdates.start_date = updates.startDate; delete dbUpdates.startDate; }
     if (updates.endDate) { dbUpdates.end_date = updates.endDate; delete dbUpdates.endDate; }
     
-    const { data: oldData } = await supabase.from('projects').select('*').eq('id', id).single();
+    const { data: oldData } = await supabase.from('projects').select('*').eq('id', id).maybeSingle();
     const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', id).select().single();
     if (error) throw error;
     const mapped = mapProject(data);
-    setProjects(prev => prev.map(p => p.id === id ? mapped : p));
-    await addHistory({ entityType: 'project', entityId: id, action: 'update', oldValue: mapProject(oldData), newValue: mapped });
+    if (mapped) {
+      setProjects(prev => prev.map(p => p.id === id ? mapped : p));
+      await addHistory({ entityType: 'project', entityId: id, action: 'update', oldValue: mapProject(oldData), newValue: mapped });
+    }
   }, [addHistory]);
 
   const addProject = useCallback(async (project) => {
@@ -230,7 +263,7 @@ function AppContent() {
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
     setProjects(prev => prev.filter(p => p.id !== id));
-    setTasks(prev => prev.filter(t => t.project_id !== id));
+    setTasks(prev => prev.filter(t => t.projectId === id || t.project_id === id));
   }, []);
 
   const recalcProjectProgress = useCallback(async (projectId) => {
@@ -243,45 +276,74 @@ function AppContent() {
   }, [updateProject]);
 
   const addTask = useCallback(async (task) => {
-    const dbData = {
-      project_id: task.projectId,
-      title: task.title || task.name,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      assignee_id: task.assigneeId,
-      due_date: task.dueDate,
-      measurement_target: task.measurementTarget,
-      measurement_current: task.measurementCurrent,
-      measurement_type: task.measurementType,
-      color: task.color
+    const dbData: Record<string, any> = {
+      title: task.title || task.name || 'Sem título',
+      description: task.description || '',
+      status: task.status || 'A Fazer',
+      priority: task.priority || 'Média',
+      project_id: task.projectId || task.project_id || null,
+      assignee_id: task.assigneeId || task.assignee_id || null,
+      due_date: task.dueDate || task.due_date || null,
+      measurement_target: Number(task.measurementTarget) || 1,
+      measurement_current: Number(task.measurementCurrent) || 0,
+      measurement_type: task.measurementType || 'UN',
+      color: task.color || 'var(--accent)',
+      executions: task.executions || []
     };
+    
     const { data, error } = await supabase.from('tasks').insert([dbData]).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao adicionar tarefa no Supabase:', error);
+      throw error;
+    }
     const mapped = mapTask(data);
-    setTasks(prev => [mapped, ...prev]);
-    await recalcProjectProgress(task.projectId);
-    await addHistory({ entityType: 'task', entityId: data.id, action: 'create', newValue: mapped });
+    if (mapped) {
+      setTasks(prev => [mapped, ...prev]);
+      if (mapped.projectId) {
+        await recalcProjectProgress(mapped.projectId);
+      }
+      await addHistory({ entityType: 'task', entityId: data.id, action: 'create', newValue: mapped });
+    }
     return mapped;
-  }, [recalcProjectProgress, addHistory]);
+  }, [addHistory, recalcProjectProgress]);
 
   const updateTask = useCallback(async (id, updates) => {
-    const dbUpdates = { ...updates };
-    if (updates.projectId !== undefined) { dbUpdates.project_id = updates.projectId; delete dbUpdates.projectId; }
-    if (updates.assigneeId !== undefined) { dbUpdates.assignee_id = updates.assigneeId; delete dbUpdates.assigneeId; }
-    if (updates.dueDate !== undefined) { dbUpdates.due_date = updates.dueDate; delete dbUpdates.dueDate; }
-    if (updates.measurementTarget !== undefined) { dbUpdates.measurement_target = updates.measurementTarget; delete dbUpdates.measurementTarget; }
-    if (updates.measurementCurrent !== undefined) { dbUpdates.measurement_current = updates.measurementCurrent; delete dbUpdates.measurementCurrent; }
-    if (updates.measurementType !== undefined) { dbUpdates.measurement_type = updates.measurementType; delete dbUpdates.measurementType; }
+    const dbUpdates: Record<string, any> = {};
+    
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.name !== undefined) dbUpdates.title = updates.name;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.project_id !== undefined) dbUpdates.project_id = updates.project_id;
+    if (updates.assigneeId !== undefined) dbUpdates.assignee_id = updates.assigneeId;
+    if (updates.assignee_id !== undefined) dbUpdates.assignee_id = updates.assignee_id;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+    if (updates.due_date !== undefined) dbUpdates.due_date = updates.due_date;
+    if (updates.measurementTarget !== undefined) dbUpdates.measurement_target = updates.measurementTarget;
+    if (updates.measurementCurrent !== undefined) dbUpdates.measurement_current = updates.measurementCurrent;
+    if (updates.measurementType !== undefined) dbUpdates.measurement_type = updates.measurementType;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.executions !== undefined) dbUpdates.executions = updates.executions;
 
-    const { data: oldData } = await supabase.from('tasks').select('*').eq('id', id).single();
-    const { data, error } = await supabase.from('tasks').update(dbUpdates).eq('id', id).select().single();
-    if (error) throw error;
-    const mapped = mapTask(data);
-    setTasks(prev => prev.map(t => t.id === id ? mapped : t));
-    if (data) await recalcProjectProgress(data.project_id);
-    await addHistory({ entityType: 'task', entityId: id, action: 'update', oldValue: mapTask(oldData), newValue: mapped });
-  }, [recalcProjectProgress, addHistory]);
+    const { data: oldData } = await supabase.from('tasks').select('*').eq('id', id).maybeSingle();
+    const { data, error } = await supabase.from('tasks').update(dbUpdates).eq('id', id).select().maybeSingle();
+    
+    if (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      throw error;
+    }
+    
+    if (data) {
+      const mapped = mapTask(data);
+      setTasks(prev => prev.map(t => t.id === id ? mapped : t));
+      if (mapped.projectId) {
+        await recalcProjectProgress(mapped.projectId);
+      }
+      await addHistory({ entityType: 'task', entityId: id, action: 'update', oldValue: mapTask(oldData), newValue: mapped });
+    }
+  }, [addHistory, recalcProjectProgress]);
 
   const deleteTask = useCallback(async (id) => {
     const { data: task } = await supabase.from('tasks').select('project_id').eq('id', id).single();
@@ -292,7 +354,12 @@ function AppContent() {
   }, [recalcProjectProgress]);
 
   const addUser = useCallback(async (user) => {
-    const { data, error } = await supabase.from('users').insert([user]).select().single();
+    const dbData = { ...user };
+    if (dbData.createdAt) {
+      dbData.created_at = dbData.createdAt;
+      delete dbData.createdAt;
+    }
+    const { data, error } = await supabase.from('users').insert([dbData]).select().single();
     if (error) throw error;
     setUsers(prev => [data, ...prev]);
     return data;

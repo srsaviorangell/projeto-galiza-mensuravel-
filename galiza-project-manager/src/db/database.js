@@ -9,3 +9,21 @@ db.version(4).stores({
   users: '++id, email, role, phone, status',
   history: '++id, entityType, entityId, timestamp'
 });
+
+// Populate initial data if empty
+db.on('populate', () => {
+  db.projects.bulkAdd(initialProjects);
+  db.tasks.bulkAdd(initialTasks);
+  db.users.bulkAdd(initialUsers);
+  db.history.bulkAdd([]);
+});
+
+// Initialize data on first load
+(async () => {
+  const userCount = await db.users.count();
+  if (userCount === 0) {
+    await db.users.bulkAdd(initialUsers);
+    await db.projects.bulkAdd(initialProjects);
+    await db.tasks.bulkAdd(initialTasks);
+  }
+})();

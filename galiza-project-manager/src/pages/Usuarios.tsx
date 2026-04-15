@@ -73,50 +73,63 @@ export default function Usuarios() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name.trim() || !formData.email.trim()) return;
-
-    if (editingUser) {
-      const updates = {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        phone: formData.phone,
-        specialty: formData.specialty,
-        status: formData.status
-      };
-      if (formData.password) {
-        updates.password = formData.password;
-      }
-      await updateUser(editingUser, updates);
-    } else {
-      if (!formData.password) {
-        alert('Senha é obrigatória para novos usuários');
-        return;
-      }
-      await addUser({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        phone: formData.phone,
-        specialty: formData.specialty,
-        status: formData.status,
-        createdAt: new Date().toISOString()
-      });
+    if (!formData.name.trim() || !formData.email.trim()) {
+      return;
     }
-    setIsModalOpen(false);
-    setEditingUser(null);
-    setFormData({ name: '', email: '', password: '', role: 'user' });
+
+    try {
+      if (editingUser) {
+        const updates = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          phone: formData.phone,
+          specialty: formData.specialty,
+          status: formData.status
+        };
+        if (formData.password) {
+          updates.password = formData.password;
+        }
+        await updateUser(editingUser, updates);
+      } else {
+        if (!formData.password) {
+          return;
+        }
+        await addUser({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          phone: formData.phone,
+          specialty: formData.specialty,
+          status: formData.status,
+          created_at: new Date().toISOString()
+        });
+      }
+      setIsModalOpen(false);
+      setEditingUser(null);
+      setFormData({ name: '', email: '', password: '', role: 'user' });
+    } catch (error: any) {
+      console.error('Erro ao salvar usuário:', error);
+    }
   };
 
   const handleConfirmDelete = async (id) => {
-    await deleteUser(id);
-    setDeleteConfirm(null);
+    try {
+      await deleteUser(id);
+      setDeleteConfirm(null);
+    } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+    }
   };
 
   const toggleRole = async (user) => {
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
-    await updateUser(user.id, { role: newRole });
+    try {
+      const newRole = user.role === 'admin' ? 'user' : 'admin';
+      await updateUser(user.id, { role: newRole });
+    } catch (error: any) {
+      console.error('Erro ao alterar permissão:', error);
+    }
   };
 
   const getRoleBadge = (role) => {
