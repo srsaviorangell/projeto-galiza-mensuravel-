@@ -1,3 +1,7 @@
+/* =========================================================
+   USUARIOS PAGE — Luxury Industrial User Management
+   ========================================================= */
+
 .usuarios-header {
   display: flex;
   justify-content: space-between;
@@ -6,10 +10,12 @@
 }
 
 .usuarios-header h1 {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.03em;
 }
 
 .usuarios-header p {
@@ -18,6 +24,7 @@
   margin: 4px 0 0;
 }
 
+/* ─── Stats Row ─── */
 .usuarios-stats {
   display: flex;
   gap: 16px;
@@ -28,11 +35,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
-  background: var(--bg-primary);
+  padding: 18px 22px;
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   flex: 1;
+  transition: var(--transition);
+}
+
+.usuarios-stats .stat-item:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .usuarios-stats .stat-item svg {
@@ -40,9 +54,11 @@
 }
 
 .usuarios-stats .stat-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .usuarios-stats .stat-label {
@@ -50,32 +66,39 @@
   color: var(--text-secondary);
 }
 
+/* ─── Toolbar ─── */
 .usuarios-toolbar {
   margin-bottom: 20px;
 }
 
-.search-box {
+.usuarios-toolbar .search-box {
   position: relative;
   max-width: 400px;
 }
 
-.search-box input {
+.usuarios-toolbar .search-box input {
   width: 100%;
   padding: 12px 16px 12px 44px;
-  border: 2px solid var(--border);
-  border-radius: 12px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius);
   font-size: 14px;
-  background: var(--bg-primary);
+  font-family: var(--font-body);
+  background: var(--bg-main);
   color: var(--text-primary);
-  transition: all 0.2s;
+  transition: var(--transition);
 }
 
-.search-box input:focus {
+.usuarios-toolbar .search-box input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.usuarios-toolbar .search-box input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
-.search-box .search-icon {
+.usuarios-toolbar .search-box .search-icon {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -83,7 +106,7 @@
   color: var(--text-tertiary);
 }
 
-.search-box .search-clear {
+.usuarios-toolbar .search-box .search-clear {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -95,23 +118,31 @@
   padding: 4px;
 }
 
+.usuarios-toolbar .search-box .search-clear:hover {
+  color: var(--danger);
+}
+
+/* ─── Table ─── */
 .usuarios-table {
-  background: var(--bg-primary);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .table-header {
   display: grid;
   grid-template-columns: 2fr 2fr 1fr 1fr;
-  padding: 16px 20px;
-  background: var(--bg-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  padding: 14px 20px;
+  background: var(--bg-elevated);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
 }
 
 .table-body {
@@ -122,10 +153,10 @@
 .table-row {
   display: grid;
   grid-template-columns: 2fr 2fr 1fr 1fr;
-  padding: 16px 20px;
+  padding: 14px 20px;
   align-items: center;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.2s;
+  border-bottom: 1px solid var(--border-light);
+  transition: var(--transition-fast);
 }
 
 .table-row:last-child {
@@ -133,7 +164,7 @@
 }
 
 .table-row:hover {
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .col-user {
@@ -146,13 +177,16 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), #fb923c);
+  background: linear-gradient(135deg, var(--accent), var(--accent-amber));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 800;
   font-size: 16px;
+  box-shadow: 0 4px 12px var(--accent-glow);
+  flex-shrink: 0;
 }
 
 .user-info {
@@ -164,12 +198,13 @@
 .user-name {
   font-weight: 600;
   color: var(--text-primary);
+  font-size: 14px;
 }
 
 .you-badge {
   font-size: 11px;
-  color: var(--accent);
-  font-weight: 500;
+  color: var(--accent-amber);
+  font-weight: 600;
 }
 
 .col-email {
@@ -182,6 +217,7 @@
 
 .col-email svg {
   color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
 .col-actions {
@@ -193,52 +229,59 @@
 .action-btn {
   width: 36px;
   height: 36px;
-  border: none;
-  border-radius: 8px;
-  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: var(--transition);
 }
 
 .action-btn:hover {
-  background: var(--accent-light);
+  background: var(--accent-subtle);
   color: var(--accent);
+  border-color: var(--accent-border);
 }
 
 .action-btn.danger:hover {
   background: var(--danger-light);
   color: var(--danger);
+  border-color: rgba(244, 63, 94, 0.2);
 }
 
+/* ─── Role Badges ─── */
 .role-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 6px 14px;
+  border-radius: 100px;
   font-size: 12px;
   font-weight: 600;
 }
 
 .role-badge.sudo {
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
-  color: white;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(168, 85, 247, 0.1));
+  color: #A78BFA;
+  border: 1px solid rgba(167, 139, 250, 0.15);
 }
 
 .role-badge.admin {
-  background: var(--accent-light);
+  background: var(--accent-subtle);
   color: var(--accent);
+  border: 1px solid var(--accent-border);
 }
 
 .role-badge.user {
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
+/* ─── Empty & Access States ─── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -270,6 +313,7 @@
 }
 
 .access-denied h2 {
+  font-family: var(--font-display);
   font-size: 24px;
   color: var(--text-primary);
   margin: 0;
@@ -280,6 +324,7 @@
   margin: 0;
 }
 
+/* ─── Responsive ─── */
 @media (max-width: 768px) {
   .usuarios-stats {
     flex-direction: column;
@@ -288,6 +333,10 @@
   .table-header,
   .table-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .col-email {
+    display: none;
   }
 
   .col-actions {

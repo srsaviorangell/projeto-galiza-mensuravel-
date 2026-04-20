@@ -1,5 +1,9 @@
+/* =========================================================
+   ADMIN PAGE — Luxury Industrial Control Panel
+   ========================================================= */
+
 .admin-container {
-  padding: 24px;
+  padding: 0.5rem;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -8,14 +12,16 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .admin-header h1 {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.03em;
 }
 
 .admin-header p {
@@ -28,28 +34,44 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, var(--accent), #fb923c);
+  padding: 12px 22px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hot));
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   color: white;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-report::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  transition: left 0.5s;
 }
 
 .btn-report:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(255, 94, 42, 0.3);
+  box-shadow: 0 8px 28px var(--accent-glow);
 }
 
-/* ===== Metrics Cards ===== */
+.btn-report:hover::before {
+  left: 100%;
+}
+
+/* ─── Metrics Cards ─── */
 .admin-metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 @media (max-width: 1024px) {
@@ -69,43 +91,47 @@
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: var(--bg-primary);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  transition: all 0.3s;
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-strong);
 }
 
 .metric-icon {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .metric-icon.projects {
-  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
-  color: #7c3aed;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(124, 58, 237, 0.06));
+  color: #A78BFA;
 }
 
 .metric-icon.collaborators {
-  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
-  color: #0284c7;
+  background: linear-gradient(135deg, var(--info-light), rgba(96, 165, 250, 0.06));
+  color: var(--info);
 }
 
 .metric-icon.progress {
-  background: linear-gradient(135deg, var(--success-light), #d1fae5);
+  background: linear-gradient(135deg, var(--success-light), rgba(52, 211, 153, 0.06));
   color: var(--success);
 }
 
 .metric-icon.urgent {
-  background: linear-gradient(135deg, var(--danger-light), #fee2e2);
+  background: linear-gradient(135deg, var(--danger-light), rgba(244, 63, 94, 0.06));
   color: var(--danger);
 }
 
@@ -115,10 +141,12 @@
 }
 
 .metric-value {
+  font-family: var(--font-display);
   font-size: 28px;
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .metric-label {
@@ -133,7 +161,7 @@
   margin-top: 2px;
 }
 
-/* ===== Admin Grid ===== */
+/* ─── Admin Grid ─── */
 .admin-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -147,17 +175,24 @@
 }
 
 .admin-card {
-  background: var(--bg-primary);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: var(--transition);
+}
+
+.admin-card:hover {
+  border-color: var(--border-strong);
 }
 
 .admin-card .card-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .admin-card .card-header svg {
@@ -165,36 +200,45 @@
 }
 
 .admin-card .card-header h3 {
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0;
   flex: 1;
+  letter-spacing: -0.02em;
 }
 
 .badge-count {
   background: var(--danger-light);
   color: var(--danger);
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 4px 12px;
+  border-radius: 100px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* ===== Performance Card ===== */
+/* ─── Performance Card ─── */
 .performance-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .performance-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  transition: var(--transition-fast);
+}
+
+.performance-item:hover {
+  border-color: var(--border);
+  background: var(--bg-card-hover);
 }
 
 .collab-info {
@@ -207,13 +251,16 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), #fb923c);
+  background: linear-gradient(135deg, var(--accent), var(--accent-amber));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 800;
   font-size: 16px;
+  box-shadow: 0 4px 12px var(--accent-glow);
+  flex-shrink: 0;
 }
 
 .collab-details {
@@ -235,7 +282,7 @@
 .collab-kpi {
   font-size: 11px;
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
   margin-top: 2px;
 }
 
@@ -247,26 +294,28 @@
 
 .collab-progress .progress-bar {
   width: 80px;
-  height: 8px;
-  background: var(--bg-primary);
-  border-radius: 4px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .collab-progress .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), #fb923c);
-  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-amber));
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .progress-text {
+  font-family: var(--font-display);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   min-width: 36px;
 }
 
-/* ===== Bar Chart ===== */
+/* ─── Bar Chart ─── */
 .bar-chart {
   display: flex;
   flex-direction: column;
@@ -284,40 +333,45 @@
   font-weight: 500;
   color: var(--text-secondary);
   width: 80px;
+  flex-shrink: 0;
 }
 
 .bar-wrapper {
   flex: 1;
   height: 24px;
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 6px;
   display: flex;
   overflow: hidden;
 }
 
 .bar-completed {
-  background: var(--success);
+  background: linear-gradient(90deg, var(--success), #34D399);
   height: 100%;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bar-pending {
   background: var(--text-tertiary);
   height: 100%;
+  opacity: 0.3;
 }
 
 .bar-value {
+  font-family: var(--font-display);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   width: 30px;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .chart-legend {
   display: flex;
   gap: 20px;
   margin-top: 16px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -330,8 +384,8 @@
 }
 
 .legend-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 3px;
 }
 
@@ -341,13 +395,15 @@
 
 .legend-dot.pending {
   background: var(--text-tertiary);
+  opacity: 0.3;
 }
 
+/* ─── KPI Row ─── */
 .kpi-row {
   display: flex;
   gap: 10px;
   margin-top: 16px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -356,21 +412,24 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
 }
 
 .mini-kpi-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .mini-kpi-value {
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
   color: var(--accent);
   margin: 4px 0 2px;
 }
@@ -380,11 +439,11 @@
   color: var(--text-tertiary);
 }
 
-/* ===== Projects Status ===== */
+/* ─── Projects Status ─── */
 .projects-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   max-height: 300px;
   overflow-y: auto;
 }
@@ -393,10 +452,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
   border-left: 3px solid var(--accent);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  transition: var(--transition-fast);
+}
+
+.project-item:hover {
+  border-color: var(--border);
+  background: var(--bg-card-hover);
 }
 
 .project-item.late {
@@ -428,8 +495,8 @@
 
 .project-progress .progress-bar {
   width: 100px;
-  height: 6px;
-  background: var(--bg-primary);
+  height: 5px;
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -437,13 +504,15 @@
 .project-progress .progress-fill {
   height: 100%;
   border-radius: 3px;
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .status-badge {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 100px;
+  letter-spacing: 0.02em;
 }
 
 .status-badge.completed {
@@ -457,15 +526,15 @@
 }
 
 .status-badge.active {
-  background: var(--accent-light);
+  background: var(--accent-subtle);
   color: var(--accent);
 }
 
-/* ===== Unassigned Tasks ===== */
+/* ─── Unassigned Tasks ─── */
 .unassigned-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   max-height: 300px;
   overflow-y: auto;
 }
@@ -474,9 +543,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  transition: var(--transition-fast);
+}
+
+.unassigned-item:hover {
+  border-color: var(--border);
+  background: var(--bg-card-hover);
 }
 
 .task-info {
@@ -497,22 +573,23 @@
 }
 
 .priority-badge {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   padding: 4px 10px;
-  border-radius: 20px;
-  background: #FFF3E0;
-  color: #F57C00;
+  border-radius: 100px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
 }
 
 .empty-text {
   color: var(--text-tertiary);
   font-size: 14px;
   text-align: center;
-  padding: 20px;
+  padding: 24px;
 }
 
-/* ===== Report Modal ===== */
+/* ─── Report Modal ─── */
 .report-modal {
   max-width: 500px;
 }
@@ -527,26 +604,29 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  background: var(--bg-secondary);
+  padding: 18px;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition);
   text-align: left;
 }
 
 .report-option:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+  transform: translateX(4px);
 }
 
 .report-option svg:first-child {
   color: var(--accent);
+  flex-shrink: 0;
 }
 
 .report-option svg:last-child {
   color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
 .option-content {
@@ -564,4 +644,5 @@
 .option-desc {
   font-size: 13px;
   color: var(--text-tertiary);
+  margin-top: 2px;
 }
