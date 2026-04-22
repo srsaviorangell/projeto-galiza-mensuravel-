@@ -294,13 +294,13 @@
 .pd-tasks-board {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: 2rem; /* Mais espaço entre as colunas */
 }
 
 .task-column {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem; /* Mais espaço entre os cards verticais */
   min-height: 200px;
 }
 
@@ -355,44 +355,85 @@
 }
 
 /* ──────────────────────────────────────────────────────────
-   RICH TASK CARD — 5 Tier Layout
+   RICH TASK CARD — Redesigned 5-Tier Measurement Cards
    ────────────────────────────────────────────────────────── */
+
+/* ─── Circular Progress Component ─── */
+.circular-progress {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.circular-progress svg {
+  display: block;
+}
+
+.circular-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.circular-progress-label strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.circular-progress-label span {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+/* ─── Card Container ─── */
 .rich-task-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-top: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 0;
   transition: var(--transition);
   animation: cardAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  min-height: 480px; /* Garante que todos os cards tenham o mesmo tamanho */
 }
 
-.rich-task-card::before {
+/* Left accent bar */
+.rich-task-card::after {
   content: '';
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: radial-gradient(
-    ellipse at top left,
-    rgba(255, 97, 48, 0.04) 0%,
-    transparent 60%
-  );
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-amber));
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
   opacity: 0;
-  transition: opacity 0.4s;
-  pointer-events: none;
+  transition: opacity 0.3s;
 }
 
 .rich-task-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-border);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--accent-border);
   transform: translateY(-3px);
 }
 
-.rich-task-card:hover::before {
+.rich-task-card:hover::after {
   opacity: 1;
 }
 
@@ -401,17 +442,18 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
-  position: relative;
+  gap: 12px;
+  padding: 1.25rem 1.25rem 0;
 }
 
 .rtc-title {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
   line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .rtc-tag {
@@ -419,14 +461,15 @@
   align-items: center;
   padding: 4px 12px;
   border-radius: 100px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
   background: var(--accent-subtle);
   color: var(--accent);
   border: 1px solid var(--accent-border);
   flex-shrink: 0;
+  text-transform: uppercase;
 }
 
 .rtc-project-badge {
@@ -445,22 +488,60 @@
   width: fit-content;
 }
 
-/* ─── Tier 2: Description ─── */
+/* ─── Tier 2: Description & Assignees ─── */
 .rtc-desc {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 1rem 1.25rem;
+  flex: 1; /* Faz esta área crescer para empurrar o resto para baixo */
 }
 
-.rtc-desc p {
+.rtc-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
+}
+
+.rtc-priority-label {
+  font-weight: 700;
+  font-size: 13px;
   color: var(--text-secondary);
+}
+
+.rtc-description-text {
+  color: var(--text-tertiary);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: 13px;
+  text-align: left;
+  /* Limita a 3 linhas para manter o tamanho do card */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.2em; /* Garante que o espaço exista mesmo sem texto */
+}
+
+.rtc-assignee-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  width: fit-content;
+  margin-top: auto; /* Empurra o badge para a base da área de descrição */
+}
+
+.rtc-user-name {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .rtc-color-dot {
@@ -468,23 +549,13 @@
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.1);
-}
-
-.rtc-user-assignee {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  width: 100%;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
 }
 
 .rtc-user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--accent), var(--accent-amber));
   display: flex;
   align-items: center;
@@ -492,34 +563,90 @@
   color: white;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 12px;
+  font-size: 10px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px var(--accent-glow);
+  box-shadow: 0 2px 6px var(--accent-glow);
 }
 
-/* ─── Tier 3: Progress ─── */
+/* ─── Tier 3: Progress Section ─── */
 .rtc-progress-area {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  justify-content: flex-start;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.012);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  width: 100%;
+}
+
+.rtc-progress-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .rtc-progress-text {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
-/* ─── Tier 4: Alert ─── */
+.rtc-progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.rtc-progress-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-amber));
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* ─── State Overrides ─── */
+.rich-task-card[style*="borderColor"] .rtc-progress-bar-fill {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.6), rgba(52, 211, 153, 0.3)) !important;
+  box-shadow: 0 0 4px rgba(52, 211, 153, 0.2) !important;
+}
+
+/* ─── Tier 4: Alert Slot ─── */
+.rtc-alert-slot {
+  padding: 0.75rem 1.25rem;
+  min-height: 38px; /* Altura fixa para alinhar alertas */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
 .rtc-alert {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(244, 63, 94, 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.rtc-alert-deadline {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-light);
 }
 
 /* ─── Tier 5: Actions ─── */
@@ -527,7 +654,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 0.5rem;
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.01);
+  margin-top: auto;
 }
 
 .btn-registrar {
@@ -536,7 +666,7 @@
   color: white;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   font-size: 13px;
   font-weight: 700;
   font-family: var(--font-body);
@@ -544,6 +674,7 @@
   transition: var(--transition);
   position: relative;
   overflow: hidden;
+  letter-spacing: 0.02em;
 }
 
 .btn-registrar::before {
@@ -551,7 +682,7 @@
   position: absolute;
   top: 0; left: -100%;
   width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
   transition: left 0.5s;
 }
 
@@ -570,11 +701,11 @@
 }
 
 .rtc-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border-strong);
   background: var(--bg-main);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -596,42 +727,36 @@
   background: var(--danger-light);
 }
 
+/* ─── Completed Card Overrides ─── */
+.rich-task-card[style*="borderColor"] {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.rich-task-card[style*="borderColor"]::after {
+  background: linear-gradient(180deg, var(--success), #10B981) !important;
+  opacity: 0.6 !important;
+}
+
+.rich-task-card[style*="borderColor"] .rtc-progress-bar-fill {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
 /* ─── Utility Classes ─── */
 .text-accent { color: var(--accent) !important; }
 .text-primary { color: var(--text-primary) !important; }
 .text-secondary { color: var(--text-secondary) !important; }
 .text-success { color: var(--success) !important; }
 
-/* ─── Responsive ─── */
+
+/* Responsive */
 @media (max-width: 1100px) {
   .pd-stats-row {
     grid-template-columns: repeat(2, 1fr);
   }
-  .pd-tasks-board {
-    grid-template-columns: 1fr;
-  }
-  .pd-info-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 768px) {
-  .pd-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  .pd-header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 600px) {
-  .pd-stats-row {
+  .pd-tasks-board {
     grid-template-columns: 1fr;
-  }
-  .pd-title-area h2 {
-    font-size: 22px;
   }
 }

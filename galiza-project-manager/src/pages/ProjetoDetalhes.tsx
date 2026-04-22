@@ -394,55 +394,68 @@ if(!linkForm.url || !linkForm.title) {
                   if (daysDelayed > 0) isDelayed = true;
                 }
 
+                const taskPct = (task.measurementTarget || 1) > 0
+                  ? Math.min(((task.measurementCurrent || 0) / (task.measurementTarget || 1)) * 100, 100)
+                  : 0;
+
                 return (
-                <div className="rich-task-card" key={task.id}>
+                <div className="rich-task-card rtc-status-afazer" key={task.id}>
                   {/* Tier 1: Header */}
                   <div className="rich-task-header">
                     <span className="rtc-title">{task.title || task.name}</span>
                     <span className="rtc-tag">{task.status}</span>
                   </div>
 
-                  {/* Tier 2: Info */}
+                  {/* Tier 2: Info & Assignees + Alerts */}
                   <div className="rtc-desc">
-                      <div className="rtc-color-dot" style={{ backgroundColor: task.color }} />
-                      <span style={{ fontWeight: 600 }}>{task.priority || 'Média'}</span>
-                      <p style={{ margin: '4px 0', fontSize: '13px' }}>{task.description || 'Sem descrição.'}</p>
-                      <div className="rtc-user-assignee" style={{ marginTop: '8px' }}>
-                        <div className="rtc-user-avatar">{getAssigneeName(task.assigneeId).charAt(0).toUpperCase()}</div>
-                        <span>{getAssigneeName(task.assigneeId)}</span>
+                      <div className="rtc-info-row">
+                        <div className="rtc-color-dot" style={{ backgroundColor: task.color }} />
+                        <span className="rtc-priority-label">{task.priority || 'Média'}</span>
                       </div>
-                      <div className="rtc-user-assignee" style={{ marginTop: '8px' }}>
-                        <div className="rtc-user-avatar">{getAssigneeName(task.assigneeId).charAt(0).toUpperCase()}</div>
-                        <span>{getAssigneeName(task.assigneeId)}</span>
+                      <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
+                      
+                      <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                        <div className="rtc-badge-item">
+                          <div className="rtc-user-avatar">{getAssigneeName(task.assigneeId).charAt(0).toUpperCase()}</div>
+                          <span className="rtc-user-name">{getAssigneeName(task.assigneeId)}</span>
+                        </div>
+                        
+                        {isDelayed && (
+                          <div className="rtc-badge-item danger">
+                            <AlertCircle size={14}/> ATRASADA {daysDelayed}D
+                          </div>
+                        )}
+
+                        {task.dueDate && (
+                          <div className="rtc-badge-item warning">
+                            <Clock size={14}/> PRAZO: {task.dueDate}
+                          </div>
+                        )}
                       </div>
                   </div>
 
                   {/* Tier 3: Progress */}
                   <div className="rtc-progress-area">
-                    <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} />
-                    <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
+                    <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} size={72} />
+                    <div className="rtc-progress-info">
+                      <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
+                      <div className="rtc-progress-bar-container">
+                        <div className="rtc-progress-bar-fill" style={{ width: `${taskPct}%` }} />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Tier 4: Alert Slot */}
-                  <div style={{ minHeight: '22px', display: 'flex', alignItems: 'center' }}>
-                    {isDelayed ? (
-                      <div className="rtc-alert" style={{ color: 'var(--danger)' }}>
-                        <AlertCircle size={14}/> Atrasada {daysDelayed}d
-                      </div>
-                    ) : task.dueDate ? (
-                      <div className="rtc-alert" style={{ color: 'var(--text-secondary)' }}>
-                        <Clock size={14}/> Prazo: {task.dueDate}
-                      </div>
-                    ) : <div style={{ height: '22px' }}></div>}
+                  {/* Tier 4: Spacing Slot */}
+                  <div className="rtc-alert-slot" style={{ minHeight: '8px' }}>
                   </div>
 
                   {/* Tier 5: Actions */}
-                  <div className="rtc-actions" style={{ marginTop: 'auto' }}>
+                  <div className="rtc-actions">
                     <button 
                       className="btn-registrar" 
                       onClick={() => openExecutionModal(task)}
                       disabled={!task.assigneeId}
-                      style={!task.assigneeId ? { background: '#cbd5e1', cursor: 'not-allowed', color: '#64748b' } : {}}
+                      style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : {}}
                     >
                        {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
                     </button>
@@ -467,40 +480,52 @@ if(!linkForm.url || !linkForm.title) {
                 </div>
               )}
 
-              {projectTasks.filter(t => t.status === 'Concluída').map(task => (
-                <div className="rich-task-card" key={task.id} style={{ borderColor: 'var(--success)', backgroundColor: 'rgba(16, 185, 129, 0.04)' }}>
+              {projectTasks.filter(t => t.status === 'Concluída').map(task => {
+                const donePct = (task.measurementTarget || 1) > 0
+                  ? Math.min(((task.measurementCurrent || task.measurementTarget || 1) / (task.measurementTarget || 1)) * 100, 100)
+                  : 100;
+
+                return (
+                <div className="rich-task-card rtc-status-concluida" key={task.id}>
                   <div className="rich-task-header">
                     <span className="rtc-title" style={{ color: 'var(--success)' }}>{task.title || task.name}</span>
-                    <span className="rtc-tag" style={{ backgroundColor: 'var(--success)', color: '#fff' }}>{task.status}</span>
+                    <span className="rtc-tag" style={{ backgroundColor: 'rgba(52, 211, 153, 0.08)', color: 'var(--success)', borderColor: 'rgba(52, 211, 153, 0.2)' }}>{task.status}</span>
                   </div>
                   <div className="rtc-desc">
-                      <div className="rtc-color-dot" style={{ backgroundColor: task.color }} />
-                      <span style={{ fontWeight: 600 }}>{task.priority || 'Média'}</span>
-                      <p style={{ margin: '4px 0', fontSize: '13px' }}>{task.description || 'Tarefa concluída.'}</p>
+                      <div className="rtc-info-row">
+                        <div className="rtc-color-dot" style={{ backgroundColor: task.color }} />
+                        <span className="rtc-priority-label">{task.priority || 'Média'}</span>
+                      </div>
+                      <p className="rtc-description-text">{task.description || 'Tarefa concluída.'}</p>
                   </div>
 
                   <div className="rtc-progress-area">
-                    <CircularProgress current={task.measurementCurrent || task.measurementTarget || 1} total={task.measurementTarget || 1} color="var(--success)" />
-                    <span className="rtc-progress-text">{task.measurementCurrent || task.measurementTarget || 1} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
-                  </div>
-
-                  <div style={{ minHeight: '22px', display: 'flex', alignItems: 'center' }}>
-                    {task.dueDate ? (
-                      <div className="rtc-alert" style={{ color: 'var(--success)' }}>
-                        <CheckCircle2 size={14}/> Fechada (Prazo: {task.dueDate})
+                    <CircularProgress current={task.measurementCurrent || task.measurementTarget || 1} total={task.measurementTarget || 1} color="var(--success)" size={72} />
+                    <div className="rtc-progress-info">
+                      <span className="rtc-progress-text">{task.measurementCurrent || task.measurementTarget || 1} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
+                      <div className="rtc-progress-bar-container">
+                        <div className="rtc-progress-bar-fill" style={{ width: `${donePct}%`, background: 'linear-gradient(90deg, var(--success), #2DD4BF)', boxShadow: '0 0 8px rgba(52, 211, 153, 0.4)' }} />
                       </div>
-                    ) : <div style={{ height: '22px' }}></div>}
+                    </div>
                   </div>
 
-                  <div className="rtc-actions" style={{ marginTop: 'auto' }}>
-                    <button className="btn-registrar" style={{ background: 'var(--success)' }} onClick={() => openHistoryModal(task)}>
+                  <div className="rtc-alert-slot">
+                    {task.dueDate ? (
+                      <div className="rtc-alert" style={{ color: 'var(--success)', background: 'rgba(52, 211, 153, 0.08)' }}>
+                        <CheckCircle2 size={14}/> Concluída (Prazo: {task.dueDate})
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rtc-actions">
+                    <button className="btn-registrar" style={{ background: 'linear-gradient(135deg, var(--success), #2DD4BF)' }} onClick={() => openHistoryModal(task)}>
                        Ver Histórico
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>
                     <button className="rtc-icon-btn danger" onClick={() => { if(window.confirm('Excluir?')) deleteTask(task.id); }}><Trash2 size={16}/></button>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         </div>

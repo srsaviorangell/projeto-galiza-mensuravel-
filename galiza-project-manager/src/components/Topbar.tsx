@@ -14,6 +14,9 @@ interface Notification {
   read: boolean;
 }
 
+import logoFull from '../assets/logos/logo-full.png';
+import logoIcon from '../assets/logos/logo-icon.png';
+
 export default function Topbar() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -160,14 +163,8 @@ export default function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="topbar-logo">
-        <div className="logo-icon-wrapper">
-          <img src="/logo.png" alt="Galiza Logo" width="40" height="40" className="img-logo" />
-        </div>
-        <div className="logo-text">
-          <h1>Galiza</h1>
-          <span>Gestão de Projetos</span>
-        </div>
+      <div className="topbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+        <img src={logoFull} alt="Galiza Gestão de Projetos" className="img-logo-full" />
       </div>
       
       <nav className="topbar-nav">

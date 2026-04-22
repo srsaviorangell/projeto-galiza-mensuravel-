@@ -7,14 +7,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 2.5rem;
-  background: var(--bg-navbar);
-  border-bottom: 1px solid var(--border);
+  background: rgba(18, 21, 29, 0.6); /* Transparência para o vidro */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Borda fina de vidro */
   height: 72px;
   width: 100%;
-  position: relative;
+  position: sticky; /* Sticky para acompanhar o scroll com efeito de vidro */
+  top: 0;
   z-index: 100;
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* Subtle glow line under the topbar */
@@ -42,27 +43,17 @@
   gap: 12px;
 }
 
-.img-logo {
-  height: 36px;
+.img-logo-full {
+  height: 45px;
   width: auto;
-  filter: drop-shadow(0 2px 8px rgba(255, 97, 48, 0.3));
+  object-fit: contain;
+  filter: drop-shadow(0 2px 10px rgba(255, 97, 48, 0.2));
+  transition: var(--transition);
 }
 
-.logo-text h1 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
-  color: white;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.logo-text span {
-  font-size: 10px;
-  color: var(--accent-amber);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+.img-logo-full:hover {
+  filter: drop-shadow(0 4px 15px rgba(255, 97, 48, 0.4));
+  transform: scale(1.02);
 }
 
 /* ─── Centered Navigation ─── */
@@ -77,34 +68,32 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--radius-sm);
+  padding: 0.5rem 1.25rem;
+  border-radius: 100px;
   transition: var(--transition);
   text-decoration: none;
   position: relative;
+  border: 1px solid transparent;
 }
 
 .nav-link:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 .nav-link.active {
   color: var(--accent-orange);
-  background: var(--accent-subtle);
-}
-
-.nav-link.active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 16px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--accent-orange);
-  box-shadow: 0 0 8px var(--accent-glow);
+  background: rgba(255, 97, 48, 0.08);
+  border-color: rgba(255, 97, 48, 0.25);
+  box-shadow: 
+    0 4px 15px rgba(255, 97, 48, 0.1),
+    inset 0 1px 1px rgba(255, 97, 48, 0.15);
+  font-weight: 700;
 }
 
 /* ─── Action Buttons ─── */
@@ -132,7 +121,11 @@
 .icon-btn:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  border-color: var(--border-strong);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* ─── Notification Badge ─── */

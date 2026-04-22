@@ -212,8 +212,8 @@
 /* ─── Task Cards Grid ─── */
 .tarefas-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.75rem; /* Mais espaço entre os cards da grade global */
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@
   width: 100%; height: 100%;
   background: radial-gradient(
     ellipse at top left,
-    rgba(255, 97, 48, 0.04) 0%,
+    rgba(236, 72, 153, 0.04) 0%,
     transparent 60%
   );
   opacity: 0;
