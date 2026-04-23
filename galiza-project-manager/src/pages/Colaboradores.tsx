@@ -1,16 +1,18 @@
 /* src/pages/Colaboradores.tsx */
-import React, { useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import { AppContext } from '../App';
 import { 
   Users, MapPin, Clock, Calendar, 
   Map as MapIcon, ShieldAlert, 
   ExternalLink, UserCheck, Activity,
-  Database
+  Database, X, TrendingUp
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Colaboradores.css';
 
 export default function Colaboradores() {
   const { tasks, projects, users, isAdmin } = useContext(AppContext);
+  const [selectedCollab, setSelectedCollab] = useState<any>(null);
 
   // Bloqueio de Segurança
   if (!isAdmin) {
@@ -63,6 +65,27 @@ export default function Colaboradores() {
     const today = new Date().toISOString().split('T')[0];
     return new Set(allActivities.filter(a => a.data === today).map(a => a.colaboradorId)).size;
   }, [allActivities]);
+
+  const collabChartData = useMemo(() => {
+    if (!selectedCollab) return [];
+    
+    const data = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateString = d.toISOString().split('T')[0];
+      
+      const dailyActivities = allActivities.filter(a => String(a.colaboradorId) === String(selectedCollab.id) && a.data === dateString);
+      const sum = dailyActivities.reduce((acc, curr) => acc + (Number(curr.quantidade) || 1), 0);
+      
+      data.push({
+        date: dateString.split('-').reverse().slice(0,2).join('/'),
+        producao: sum
+      });
+    }
+    return data;
+  }, [selectedCollab, allActivities]);
 
   return (
     <div className="dashboard-container animate-fadeIn">
@@ -165,9 +188,10 @@ export default function Colaboradores() {
                 {users.map(c => {
                   const hasActivityToday = allActivities.some(a => String(a.colaboradorId) === String(c.id) && a.data === new Date().toISOString().split('T')[0]);
                   return (
-                    <div key={c.id} className="active-user-item">
+                    <div key={c.id} className="active-user-item clickable-user" onClick={() => setSelectedCollab(c)}>
                        <div className={`user-status-dot ${hasActivityToday ? 'online' : 'offline'}`}></div>
-                       <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{c.name}</span>
+                       <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500, flex: 1 }}>{c.name}</span>
+                       <TrendingUp size={14} className="user-chart-icon" />
                     </div>
                   );
                 })}
@@ -175,6 +199,68 @@ export default function Colaboradores() {
           </div>
         </div>
       </div>
+
+      {/* Chart Modal */}
+      {selectedCollab && (
+        <div className="chart-modal-overlay animate-fadeIn" onClick={() => setSelectedCollab(null)}>
+          <div className="chart-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="chart-modal-header">
+              <div>
+                <h2>Desempenho: {selectedCollab.name}</h2>
+                <p>Volume de produções nos últimos 30 dias</p>
+              </div>
+              <button className="close-modal-btn" onClick={() => setSelectedCollab(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={collabChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="var(--text-tertiary)" 
+                    fontSize={12} 
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis 
+                    stroke="var(--text-tertiary)" 
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dx={-10}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(26, 30, 41, 0.85)', 
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 97, 48, 0.2)',
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                      color: 'var(--text-primary)'
+                    }}
+                    itemStyle={{ color: 'var(--accent-orange)', fontWeight: 800 }}
+                    labelStyle={{ color: 'var(--text-secondary)', marginBottom: '4px' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="producao" 
+                    name="Produção"
+                    stroke="var(--accent-orange)" 
+                    strokeWidth={3}
+                    dot={{ fill: 'var(--bg-main)', stroke: 'var(--accent-orange)', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#fff', stroke: 'var(--accent-orange)', strokeWidth: 2 }}
+                    animationDuration={1500}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

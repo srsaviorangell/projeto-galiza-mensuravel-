@@ -344,89 +344,64 @@
   font-weight: 500;
 }
 
-/* ─── Urgent Tasks ─── */
-.urgent-tasks-list {
+/* ─── Sparklines Card ─── */
+.sparklines-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.urgent-task-item {
-  display: flex;
-  align-items: center;
   gap: 12px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.015);
-  transition: var(--transition-fast);
-  border: 1px solid transparent;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
-.urgent-task-item:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--border);
+.sparklines-list::-webkit-scrollbar {
+  width: 4px;
+}
+.sparklines-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
 }
 
-.priority-indicator {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.priority-indicator.urgente {
-  background: var(--danger-light);
-  color: var(--danger);
-}
-
-.priority-indicator.alta {
-  background: var(--warning-light);
-  color: var(--warning);
-}
-
-.priority-indicator.média {
-  background: var(--accent-light);
-  color: var(--accent);
-}
-
-.priority-indicator.baixa {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-tertiary);
-}
-
-.task-info {
+.sparkline-item-card {
+  background: #0f0f11;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
+  gap: 12px;
+  min-height: 90px;
 }
 
-.task-name {
-  font-size: 13px;
+.sparkline-item-card:hover {
+  border-color: rgba(216, 180, 254, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.sparkline-name {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #fff;
+  z-index: 2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 90%;
 }
 
-.task-project {
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.task-late {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--danger);
-  background: var(--danger-light);
-  padding: 3px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
+.sparkline-chart-wrapper {
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* ─── Status Badges ─── */

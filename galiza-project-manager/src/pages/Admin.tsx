@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FolderKanban, Users, TrendingUp, AlertTriangle, 
   BarChart3, FileText, X, Download, Calendar,
-  CheckCircle2, Clock, User, Plus
+  CheckCircle2, Clock, User, Plus, Settings, ArrowUpRight
 } from 'lucide-react';
 import { AppContext } from '../App';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Admin.css';
 
 export default function Admin() {
@@ -16,6 +17,9 @@ export default function Admin() {
   const navigate = useNavigate();
   const [showReportModal, setShowReportModal] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string, filename: string, doc: any } | null>(null);
+  const [chartContext, setChartContext] = useState<{ type: 'collab' | 'project', id: string, name: string } | null>(null);
+  const [activeStatModal, setActiveStatModal] = useState<'projects' | 'users' | 'progress' | 'urgent' | null>(null);
+  const [timeRange, setTimeRange] = useState<'3 Dias' | 'Semana' | '15 Dias' | 'Mês' | 'Trimestre' | 'Semestre' | 'Ano'>('Semana');
 
   const allAssignees = useMemo(() => {
     return users.map(u => ({ id: u.id, name: u.name, type: 'user' }));
@@ -78,6 +82,113 @@ export default function Admin() {
       return { ...proj, completed, total, daysLeft, isLate };
     }).sort((a, b) => (b.progress || 0) - (a.progress || 0));
   }, [projects, tasks]);
+
+  const targetTasks = useMemo(() => {
+    if (!chartContext) return [];
+    if (chartContext.type === 'collab') {
+      return tasks.filter(t => t.assignee === chartContext.name || t.assigneeId === chartContext.id);
+    } else {
+      return tasks.filter(t => t.projectId === chartContext.id);
+    }
+  }, [tasks, chartContext]);
+
+  const targetExecutions = useMemo(() => {
+    if (!chartContext) return [];
+    const executions = targetTasks.flatMap(t => {
+      return (t.executions || []).map(e => ({
+        ...e,
+        taskTitle: t.title,
+        taskMeasurement: t.measurementType || 'un'
+      }));
+    });
+    
+    if (chartContext.type === 'collab') {
+       return executions.filter(e => String(e.colaboradorId) === String(chartContext.id));
+    }
+    return executions;
+  }, [targetTasks, chartContext]);
+
+  const chartData = useMemo(() => {
+    if (!chartContext) return [];
+    
+    const data = [];
+    const today = new Date();
+    
+    let days = 7;
+    if (timeRange === '3 Dias') days = 3;
+    else if (timeRange === 'Semana') days = 7;
+    else if (timeRange === '15 Dias') days = 15;
+    else if (timeRange === 'Mês') days = 30;
+    else if (timeRange === 'Trimestre') days = 90;
+    else if (timeRange === 'Semestre') days = 180;
+    else if (timeRange === 'Ano') days = 365;
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateString = d.toISOString().split('T')[0];
+      
+      const dailyActivities = targetExecutions.filter(a => a.data === dateString);
+      const sum = dailyActivities.length;
+      
+      const [year, month, day] = dateString.split('-');
+      const label = days > 90 ? `${month}/${year}` : `${day}/${month}`;
+      
+      data.push({
+        date: label,
+        producao: sum
+      });
+    }
+    return data;
+  }, [chartContext, targetExecutions, timeRange]);
+
+  const filteredExecutions = useMemo(() => {
+    if (!chartContext) return [];
+    
+    let days = 7;
+    if (timeRange === '3 Dias') days = 3;
+    else if (timeRange === 'Semana') days = 7;
+    else if (timeRange === '15 Dias') days = 15;
+    else if (timeRange === 'Mês') days = 30;
+    else if (timeRange === 'Trimestre') days = 90;
+    else if (timeRange === 'Semestre') days = 180;
+    else if (timeRange === 'Ano') days = 365;
+    
+    const now = new Date().getTime();
+    return targetExecutions.filter(e => {
+       const eDate = new Date(e.timestamp || e.data).getTime();
+       const diffDays = (now - eDate) / (1000 * 3600 * 24);
+       return diffDays <= days;
+    }).sort((a, b) => new Date(b.timestamp || b.data).getTime() - new Date(a.timestamp || a.data).getTime());
+  }, [chartContext, targetExecutions, timeRange]);
+
+  const chartStats = useMemo(() => {
+    if (!chartContext) return { total: 0, prevTotal: 0, increase: 0, percent: 0 };
+    
+    const currentData = chartData.map(d => d.producao);
+    const total = currentData.reduce((a, b) => a + b, 0);
+    
+    let days = 7;
+    if (timeRange === '3 Dias') days = 3;
+    else if (timeRange === 'Semana') days = 7;
+    else if (timeRange === '15 Dias') days = 15;
+    else if (timeRange === 'Mês') days = 30;
+    else if (timeRange === 'Trimestre') days = 90;
+    else if (timeRange === 'Semestre') days = 180;
+    else if (timeRange === 'Ano') days = 365;
+    
+    const prevTotal = targetExecutions.filter(e => {
+       const eDate = new Date(e.timestamp || e.data).getTime();
+       const now = new Date().getTime();
+       const diffDays = (now - eDate) / (1000 * 3600 * 24);
+       return diffDays >= days && diffDays < days * 2;
+    }).length;
+    
+    const increase = total - prevTotal;
+    const percent = prevTotal === 0 ? (total > 0 ? 100 : 0) : ((increase / prevTotal) * 100);
+    
+    return { total, increase, percent: percent.toFixed(1) };
+  }, [chartData, chartContext, targetExecutions, timeRange]);
 
   const overallProgress = useMemo(() => {
     const total = tasks.length;
@@ -271,7 +382,7 @@ export default function Admin() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => setActiveStatModal('projects')}>
           <div className="stat-icon-wrapper">
             <FolderKanban size={24} />
           </div>
@@ -281,7 +392,7 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => setActiveStatModal('users')}>
           <div className="stat-icon-wrapper admin" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
             <Users size={24} />
           </div>
@@ -291,7 +402,7 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => setActiveStatModal('progress')}>
           <div className="stat-icon-wrapper success" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
             <TrendingUp size={24} />
           </div>
@@ -301,7 +412,7 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => setActiveStatModal('urgent')}>
           <div className="stat-icon-wrapper urgent">
             <AlertTriangle size={24} />
           </div>
@@ -323,7 +434,7 @@ export default function Admin() {
               <p className="empty-text">Nenhum colaborador cadastrado</p>
             ) : (
               tasksByCollaborator.map(collab => (
-                <div key={collab.id} className="performance-item">
+                <div key={collab.id} className="performance-item clickable" onClick={() => setChartContext({ type: 'collab', id: collab.id, name: collab.name })}>
                   <div className="collab-info">
                     <div className="collab-avatar">{collab.name?.charAt(0) || 'U'}</div>
                     <div className="collab-details">
@@ -343,6 +454,7 @@ export default function Admin() {
                       <div className="progress-fill" style={{ width: `${collab.progress}%` }} />
                     </div>
                     <span className="progress-text">{collab.progress}%</span>
+                    <TrendingUp size={16} className="item-chart-icon" />
                   </div>
                 </div>
               ))
@@ -389,7 +501,7 @@ export default function Admin() {
           </div>
           <div className="projects-list">
             {projectStatus.map(proj => (
-              <div key={proj.id} className={`project-item ${proj.isLate ? 'late' : ''}`}>
+              <div key={proj.id} className={`project-item clickable-card ${proj.isLate ? 'late' : ''}`} onClick={() => setChartContext({ type: 'project', id: proj.id, name: proj.name })}>
                 <div className="project-info">
                   <span className="project-name">{proj.name}</span>
                   <span className="project-meta">
@@ -503,6 +615,222 @@ export default function Admin() {
                 style={{ width: '100%', height: '100%', border: 'none' }} 
                 title="Pré-visualização de Documento"
               />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {chartContext && createPortal(
+        <div className="reference-modal-overlay animate-fadeIn" onClick={() => setChartContext(null)}>
+          <div className="reference-chart-card" onClick={e => e.stopPropagation()}>
+            <div className="rcc-header">
+              <div className="rcc-title-row">
+                <h2>Gráfico de Desempenho</h2>
+                <button className="rcc-settings-btn" onClick={() => setChartContext(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="rcc-subtitle-row">
+                <span className="rcc-label">{chartContext.type === 'collab' ? 'Colaborador' : 'Projeto'}</span>
+                <div className="rcc-value-col">
+                  <span className="rcc-main-value">{chartContext.name}</span>
+                  <span className="rcc-sub-value">Produção Registrada (Atividades)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rcc-tabs-container">
+              <div className="rcc-tabs">
+                <button className={`rcc-tab ${timeRange === '3 Dias' ? 'active' : ''}`} onClick={() => setTimeRange('3 Dias')}>3 Dias</button>
+                <button className={`rcc-tab ${timeRange === 'Semana' ? 'active' : ''}`} onClick={() => setTimeRange('Semana')}>Semana</button>
+                <button className={`rcc-tab ${timeRange === '15 Dias' ? 'active' : ''}`} onClick={() => setTimeRange('15 Dias')}>15 Dias</button>
+                <button className={`rcc-tab ${timeRange === 'Mês' ? 'active' : ''}`} onClick={() => setTimeRange('Mês')}>Mês</button>
+                <select 
+                  className={`rcc-tab-select ${['Trimestre', 'Semestre', 'Ano'].includes(timeRange) ? 'active' : ''}`}
+                  value={['Trimestre', 'Semestre', 'Ano'].includes(timeRange) ? timeRange : ''} 
+                  onChange={(e) => {
+                    if (e.target.value) setTimeRange(e.target.value as any);
+                  }}
+                >
+                  <option value="" disabled>Mais...</option>
+                  <option value="Trimestre">Trimestre</option>
+                  <option value="Semestre">Semestre</option>
+                  <option value="Ano">Ano</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rcc-chart-wrapper">
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34D399" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#34D399" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={false} stroke="rgba(255,255,255,0.04)" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="rgba(255,255,255,0.3)" 
+                    fontSize={10} 
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                    minTickGap={20}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1C1C1E', 
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                    }}
+                    itemStyle={{ color: '#34D399', fontWeight: 700 }}
+                    cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="producao" 
+                    name="Atividades"
+                    stroke="#34D399" 
+                    fillOpacity={1} 
+                    fill="url(#colorProd)" 
+                    strokeWidth={2}
+                    activeDot={{ r: 5, fill: '#1C1C1E', stroke: '#34D399', strokeWidth: 2 }}
+                    dot={false}
+                    animationDuration={1000}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="rcc-footer">
+              <span className="rcc-footer-label">Total Produzido</span>
+              <div className="rcc-footer-stats">
+                <div className="rcc-big-number">
+                  {chartStats.total}
+                  <span className={`rcc-increment ${chartStats.increase >= 0 ? 'positive' : 'negative'}`}>
+                    {chartStats.increase >= 0 ? '+' : ''}{chartStats.increase}
+                  </span>
+                </div>
+                <div className={`rcc-percent ${chartStats.increase >= 0 ? 'positive' : 'negative'}`}>
+                  <ArrowUpRight size={16} /> {Math.abs(Number(chartStats.percent))}%
+                </div>
+              </div>
+            </div>
+
+            <div className="rcc-activities-list">
+              <h4 className="rcc-activities-title">Atividades Realizadas ({filteredExecutions.length})</h4>
+              <div className="rcc-activities-scroll">
+                {filteredExecutions.length === 0 ? (
+                  <p className="rcc-empty-activities">Nenhuma atividade neste período.</p>
+                ) : (
+                  filteredExecutions.map((exec, idx) => (
+                    <div key={exec.id || idx} className="rcc-activity-item">
+                      <div className="rcc-activity-info">
+                        <span className="rcc-activity-task">{exec.taskTitle}</span>
+                        <span className="rcc-activity-date">
+                          {new Date(exec.timestamp || exec.data).toLocaleString('pt-BR', {
+                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      <div className="rcc-activity-value" style={{ color: 'var(--text-secondary)' }}>
+                        <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {activeStatModal && createPortal(
+        <div className="chart-modal-overlay animate-fadeIn" onClick={() => setActiveStatModal(null)}>
+          <div className="chart-modal-content stat-list-modal" onClick={e => e.stopPropagation()}>
+            <div className="chart-modal-header">
+              <div>
+                <h2>
+                  {activeStatModal === 'projects' ? 'Projetos Ativos' : 
+                   activeStatModal === 'users' ? 'Equipe de Colaboradores' : 
+                   activeStatModal === 'progress' ? 'Últimas Atividades Globais' : 'Tarefas Urgentes'}
+                </h2>
+                <p>Detalhamento dos indicadores</p>
+              </div>
+              <button className="close-modal-btn" onClick={() => setActiveStatModal(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="stat-modal-body rcc-activities-scroll" style={{ maxHeight: '400px' }}>
+              {activeStatModal === 'projects' && (
+                projectStatus.map(p => (
+                  <div key={p.id} className="rcc-activity-item" onClick={() => { setActiveStatModal(null); setChartContext({ type: 'project', id: p.id, name: p.name }); }} style={{ cursor: 'pointer' }}>
+                    <div className="rcc-activity-info">
+                      <span className="rcc-activity-task">{p.name}</span>
+                      <span className="rcc-activity-date">{p.completed}/{p.total} tarefas concluídas</span>
+                    </div>
+                    <div className="rcc-activity-value" style={{ color: p.progress === 100 ? 'var(--success)' : p.isLate ? 'var(--danger)' : 'var(--accent)' }}>
+                      {p.progress}%
+                    </div>
+                  </div>
+                ))
+              )}
+              {activeStatModal === 'users' && (
+                tasksByCollaborator.map(c => (
+                  <div key={c.id} className="rcc-activity-item" onClick={() => { setActiveStatModal(null); setChartContext({ type: 'collab', id: c.id, name: c.name }); }} style={{ cursor: 'pointer' }}>
+                    <div className="rcc-activity-info">
+                      <span className="rcc-activity-task">{c.name}</span>
+                      <span className="rcc-activity-date">{c.totalProduced || 0} atividades produzidas</span>
+                    </div>
+                    <div className="rcc-activity-value">
+                      {c.progress}%
+                    </div>
+                  </div>
+                ))
+              )}
+              {activeStatModal === 'progress' && (
+                tasks.flatMap(t => (t.executions || []).map(e => ({...e, taskTitle: t.title, collabName: users.find(u => String(u.id) === String(e.colaboradorId))?.name})))
+                     .sort((a,b) => new Date(b.timestamp || b.data).getTime() - new Date(a.timestamp || a.data).getTime())
+                     .slice(0, 50)
+                     .map((exec, idx) => (
+                  <div key={idx} className="rcc-activity-item">
+                    <div className="rcc-activity-info">
+                      <span className="rcc-activity-task">{exec.taskTitle}</span>
+                      <span className="rcc-activity-date">
+                        {exec.collabName} • {new Date(exec.timestamp || exec.data).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="rcc-activity-value" style={{ color: 'var(--text-secondary)' }}>
+                      <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+                    </div>
+                  </div>
+                ))
+              )}
+              {activeStatModal === 'urgent' && (
+                tasks.filter(t => t.priority === 'Urgente' && t.status !== 'Concluída').map(t => (
+                  <div key={t.id} className="rcc-activity-item">
+                    <div className="rcc-activity-info">
+                      <span className="rcc-activity-task">{t.title}</span>
+                      <span className="rcc-activity-date">{projects.find(p => p.id === t.projectId)?.name} • Resp: {t.assignee || 'Sem responsável'}</span>
+                    </div>
+                    <div className="rcc-activity-value" style={{ color: 'var(--danger)' }}>
+                      <AlertTriangle size={16} />
+                    </div>
+                  </div>
+                ))
+              )}
+              {activeStatModal === 'urgent' && tasks.filter(t => t.priority === 'Urgente' && t.status !== 'Concluída').length === 0 && (
+                 <p className="rcc-empty-activities">Não há tarefas urgentes no momento.</p>
+              )}
+              {activeStatModal === 'progress' && tasks.flatMap(t => t.executions || []).length === 0 && (
+                 <p className="rcc-empty-activities">Nenhuma atividade registrada.</p>
+              )}
             </div>
           </div>
         </div>,

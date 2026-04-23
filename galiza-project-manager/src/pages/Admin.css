@@ -238,9 +238,27 @@
   transition: var(--transition-fast);
 }
 
+.performance-item.clickable {
+  cursor: pointer;
+}
+
 .performance-item:hover {
   border-color: var(--border);
   background: var(--bg-card-hover);
+}
+
+.item-chart-icon {
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: var(--transition);
+  margin-left: 8px;
+}
+
+.performance-item.clickable:hover .item-chart-icon {
+  opacity: 1;
+  color: var(--accent);
+  transform: translateX(0);
 }
 
 .collab-info {
@@ -649,4 +667,403 @@
   font-size: 13px;
   color: var(--text-tertiary);
   margin-top: 2px;
+}
+
+/* ─── Generic Modals (Stat Lists) ─── */
+.chart-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.chart-modal-content {
+  background: rgba(26, 30, 41, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  width: 100%;
+  max-width: 900px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.chart-modal-content.stat-list-modal {
+  max-width: 500px;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+
+.chart-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 1.5rem;
+}
+
+.chart-modal-header h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.chart-modal-header p {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.close-modal-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.close-modal-btn:hover {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--danger);
+  border-color: rgba(244, 63, 94, 0.3);
+  transform: rotate(90deg);
+}
+
+/* ─── Reference Chart Card Styles ─── */
+.reference-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 30, 30, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.reference-chart-card {
+  background: radial-gradient(circle at bottom, rgba(52, 211, 153, 0.1) 0%, #151618 60%);
+  background-color: #151618; /* Dark base like the image */
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: relative;
+  overflow: hidden;
+}
+
+.rcc-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.rcc-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rcc-title-row h2 {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  font-family: var(--font-body);
+}
+
+.rcc-settings-btn {
+  background: transparent;
+  border: none;
+  color: #8E8E93;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.rcc-settings-btn:hover {
+  color: #fff;
+}
+
+.rcc-subtitle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.rcc-label {
+  color: #8E8E93;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.rcc-value-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rcc-main-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rcc-sub-value {
+  color: #8E8E93;
+  font-size: 13px;
+}
+
+.rcc-tabs-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.rcc-tabs {
+  display: flex;
+  background: rgba(255,255,255,0.05);
+  border-radius: 100px;
+  padding: 4px;
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+.rcc-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #8E8E93;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 0;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rcc-tab:hover {
+  color: #fff;
+}
+
+.rcc-tab.active {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.rcc-tab-select {
+  background: transparent;
+  border: none;
+  color: #8E8E93;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-align: center;
+  flex: 0.8;
+  transition: all 0.2s;
+}
+
+.rcc-tab-select:hover,
+.rcc-tab-select:focus {
+  color: #fff;
+}
+
+.rcc-tab-select.active {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.rcc-tab-select option {
+  background: #1C1C1E;
+  color: #fff;
+}
+
+.rcc-chart-wrapper {
+  margin: 0 -12px; /* Slight bleed */
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.rcc-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.rcc-footer-label {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rcc-footer-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.rcc-big-number {
+  color: #fff;
+  font-size: 36px;
+  font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  line-height: 1;
+}
+
+.rcc-increment {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 6px;
+  margin-top: 4px;
+}
+
+.rcc-increment.positive {
+  color: #34D399; /* Mint green */
+}
+
+.rcc-increment.negative {
+  color: #FF453A;
+}
+
+.rcc-percent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.rcc-percent.positive {
+  color: #34D399;
+}
+
+.rcc-percent.negative {
+  color: #FF453A;
+}
+
+/* ─── Activities List (Modal) ─── */
+.rcc-activities-list {
+  margin-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rcc-activities-title {
+  color: #8E8E93;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.rcc-activities-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rcc-activities-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.rcc-activities-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+
+.rcc-empty-activities {
+  color: #555;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+}
+
+.rcc-activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.02);
+  transition: background 0.2s;
+}
+
+.rcc-activity-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.rcc-activity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rcc-activity-task {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rcc-activity-date {
+  color: #8E8E93;
+  font-size: 11px;
+}
+
+.rcc-activity-value {
+  color: #34D399;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.rcc-activity-unit {
+  font-size: 10px;
+  font-weight: 500;
+  color: #8E8E93;
 }
