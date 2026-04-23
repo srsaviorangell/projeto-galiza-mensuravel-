@@ -9,6 +9,7 @@
   --bg-card-hover: #1c2030;
   --bg-elevated: #1f2333;
   --bg-surface: rgba(22, 26, 36, 0.65);
+  --bg-surface-strong: rgba(22, 26, 36, 0.90);
   --bg-secondary: #1a1e28;
   --bg-primary: #161a24;
 
@@ -78,6 +79,74 @@
   --primary: #F1F3F8;
   --primary-light: rgba(241, 243, 248, 0.1);
   --card-bg: var(--bg-card);
+
+  /* Mesh Gradient Colors */
+  --mesh-1: rgba(255, 97, 48, 0.12);
+  --mesh-2: rgba(255, 97, 48, 0.08);
+  --mesh-3: rgba(255, 179, 71, 0.08);
+}
+
+[data-theme="light"] {
+  /* ─── Light Mode Palette: Luxurious Light ─── */
+  --bg-deep: #C6CAC3;
+  --bg-main: #E1E4E1;
+  --bg-navbar: #ECEEEC;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F6F7F6;
+  --bg-elevated: #FFFFFF;
+  --bg-surface: rgba(255, 255, 255, 0.40);
+  --bg-surface-strong: rgba(255, 255, 255, 0.65);
+  --bg-secondary: #F1F3F1;
+  --bg-primary: #FFFFFF;
+
+  /* Accent: Coral Orange & Lilac */
+  --accent-orange: #FE5D2D;
+  --accent: #FE5D2D;
+  --accent-hot: #E04E20;
+  --accent-amber: #8E6F8E; /* Darker Lilac for text readability */
+  --accent-glow: rgba(254, 93, 45, 0.25);
+  --accent-subtle: rgba(254, 93, 45, 0.08);
+  --accent-light: rgba(254, 93, 45, 0.12);
+  --accent-border: rgba(254, 93, 45, 0.25);
+  --accent-hover: #E84D20;
+  --accent-green: #B5BCB3; /* Sage from palette 2 */
+
+  /* Semantic */
+  --success: #24475B; /* Dark teal for contrast */
+  --success-light: rgba(36, 71, 91, 0.1);
+  --danger: #FE5D2D;
+  --danger-light: rgba(254, 93, 45, 0.12);
+  --warning: #24475B;
+  --warning-light: rgba(36, 71, 91, 0.12);
+  --info: #24475B;
+  --info-light: rgba(36, 71, 91, 0.12);
+
+  /* Text - Very dark green/black #1F231F and Dark Teal #24475B */
+  --text-primary: #1F231F;
+  --text-secondary: #24475B;
+  --text-tertiary: #B5BCB3;
+  --text: #1F231F;
+
+  /* Borders */
+  --border: rgba(31, 35, 31, 0.08);
+  --border-light: rgba(31, 35, 31, 0.04);
+  --border-subtle: rgba(31, 35, 31, 0.03);
+  --border-strong: rgba(31, 35, 31, 0.15);
+
+  /* Shadows - softer and less dark */
+  --shadow-sm: 0 2px 8px rgba(31, 35, 31, 0.04);
+  --shadow: 0 4px 16px rgba(31, 35, 31, 0.06);
+  --shadow-md: 0 8px 24px rgba(31, 35, 31, 0.08);
+  --shadow-card: 0 8px 32px rgba(31, 35, 31, 0.06), 0 0 0 1px var(--border-light);
+  --shadow-glow: 0 4px 30px var(--accent-glow);
+
+  /* Mesh Gradient Colors for Light Mode */
+  --mesh-1: rgba(254, 93, 45, 0.1); /* Soft Orange */
+  --mesh-2: rgba(224, 201, 221, 0.5); /* Lilac */
+  --mesh-3: rgba(255, 255, 255, 0.7); /* White highlight */
+  
+  --primary: #1F231F;
+  --primary-light: rgba(31, 35, 31, 0.05);
 }
 
 *,
@@ -110,9 +179,9 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 70% at 10% 0%, rgba(255, 97, 48, 0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 70% 60% at 90% 15%, rgba(255, 97, 48, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(255, 179, 71, 0.08) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 70% at 10% 0%, var(--mesh-1) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 60% at 90% 15%, var(--mesh-2) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, var(--mesh-3) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
 }
