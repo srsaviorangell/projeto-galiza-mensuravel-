@@ -15,7 +15,7 @@ export default function Colaboradores() {
   // Bloqueio de Segurança
   if (!isAdmin) {
     return (
-      <div className="colaboradores-container animate-fadeIn">
+      <div className="dashboard-container animate-fadeIn">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '100px 20px', textAlign: 'center', gap: '1.5rem' }}>
           <div style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', color: 'var(--danger)' }}>
              <ShieldAlert size={48} />
@@ -65,16 +65,21 @@ export default function Colaboradores() {
   }, [allActivities]);
 
   return (
-    <div className="colaboradores-container animate-fadeIn">
-      <div className="colaboradores-header">
+    <div className="dashboard-container animate-fadeIn">
+      <div className="dashboard-header">
         <div>
           <h1>Monitoramento de Equipe</h1>
-          <p>Acompanhe em tempo real os lançamentos e localizações da equipe de campo.</p>
+          <p className="dashboard-subtitle">Acompanhe em tempo real os lançamentos e localizações da equipe de campo.</p>
         </div>
-        <div className="dashboard-date" style={{ background: 'var(--bg-secondary)', padding: '10px 15px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dashboard-date">
           <Calendar size={16} />
-          <span style={{ fontSize: '14px', fontWeight: 600 }}>
-             {new Date().toLocaleDateString('pt-BR')}
+          <span>
+             {new Date().toLocaleDateString('pt-BR', { 
+               weekday: 'long', 
+               day: 'numeric', 
+               month: 'long',
+               year: 'numeric'
+             })}
           </span>
         </div>
       </div>

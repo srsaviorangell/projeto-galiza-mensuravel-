@@ -4,11 +4,13 @@
 
 .dashboard-container {
   padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 /* ─── Header ─── */
 .dashboard-header {
-  margin-bottom: 2.5rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -48,9 +50,8 @@
 /* ─── Stats Grid ─── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.25rem;
-  margin-bottom: 2.5rem;
 }
 
 .stat-card {
@@ -64,7 +65,8 @@
   min-height: 140px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -115,8 +117,15 @@
 }
 
 .stat-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .stat-icon-wrapper.urgent { color: var(--danger); }
@@ -129,6 +138,10 @@
   color: white;
   display: block;
   letter-spacing: -0.03em;
+}
+
+.stat-content {
+  margin-top: auto;
 }
 
 .stat-label {

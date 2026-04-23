@@ -57,34 +57,25 @@
   margin-bottom: 36px;
 }
 
-.login-logo {
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-amber));
-  border-radius: 18px;
+.login-logo-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 18px;
-  color: white;
-  box-shadow: 0 12px 32px var(--accent-glow);
+  margin: 0 auto -10px;
   position: relative;
 }
 
-.login-logo::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-amber));
-  opacity: 0.15;
-  z-index: -1;
-  animation: logoPulse 3s ease-in-out infinite;
+.login-g-logo {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 8px var(--accent-glow));
+  animation: logoPulseGlow 3s ease-in-out infinite alternate;
 }
 
-@keyframes logoPulse {
-  0%, 100% { transform: scale(1); opacity: 0.15; }
-  50%      { transform: scale(1.08); opacity: 0.25; }
+@keyframes logoPulseGlow {
+  0%   { filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 8px var(--accent-glow)); transform: scale(1); }
+  100% { filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 16px var(--accent)); transform: scale(1.03); }
 }
 
 .login-header h1 {

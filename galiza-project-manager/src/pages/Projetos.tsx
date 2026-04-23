@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock,
   CalendarDays,
+  Calendar,
   UploadCloud,
   X,
   Plus,
@@ -21,6 +22,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { AppContext } from '../App';
+import '../pages/Dashboard.css';
 import './Projetos.css';
 
 type ViewMode = 'grid' | 'list';
@@ -266,43 +268,66 @@ export default function Projetos() {
   ];
 
   return (
-    <div className="page-container animate-fadeIn">
+    <div className="dashboard-container animate-fadeIn">
+      {/* ===== Header ===== */}
+      <div className="dashboard-header">
+        <div>
+          <h1>Projetos</h1>
+          <p className="dashboard-subtitle">Gestão de todos os seus projetos</p>
+        </div>
+        <div className="dashboard-date">
+          <Calendar size={16} />
+          <span>{new Date().toLocaleDateString('pt-BR', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long',
+            year: 'numeric'
+          })}</span>
+        </div>
+      </div>
+
       {/* ===== Summary Cards ===== */}
-      <div className="projetos-summary">
-        <div className="summary-card summary-total">
-          <div className="summary-icon-wrapper summary-icon-total">
-            <FolderOpen size={20} />
+      <div className="stats-grid">
+        <div className="stat-card stat-projects">
+          <div className="stat-icon-wrapper">
+            <FolderOpen size={24} />
           </div>
-          <div className="summary-info">
-            <span className="summary-value">{summaryStats.total}</span>
-            <span className="summary-label">Total Projetos</span>
-          </div>
-        </div>
-        <div className="summary-card summary-progress">
-          <div className="summary-icon-wrapper summary-icon-progress">
-            <TrendingUp size={20} />
-          </div>
-          <div className="summary-info">
-            <span className="summary-value">{summaryStats.avgProgress}%</span>
-            <span className="summary-label">Progresso Médio</span>
+          <div className="stat-content">
+            <span className="stat-value">{summaryStats.total}</span>
+            <span className="stat-label">Total Projetos</span>
           </div>
         </div>
-        <div className="summary-card summary-completed">
-          <div className="summary-icon-wrapper summary-icon-completed">
-            <CheckCircle2 size={20} />
+        <div className="stat-card stat-progress">
+          <div className="stat-icon-wrapper">
+            <TrendingUp size={24} />
           </div>
-          <div className="summary-info">
-            <span className="summary-value">{summaryStats.completed}</span>
-            <span className="summary-label">Concluídos</span>
+          <div className="stat-content">
+            <span className="stat-value">{summaryStats.avgProgress}%</span>
+            <span className="stat-label">Progresso Médio</span>
+          </div>
+          <div className="stat-progress-bar">
+            <div 
+              className="stat-progress-fill" 
+              style={{ width: `${summaryStats.avgProgress}%` }}
+            />
           </div>
         </div>
-        <div className="summary-card summary-late">
-          <div className="summary-icon-wrapper summary-icon-late">
-            <AlertTriangle size={20} />
+        <div className="stat-card stat-tasks">
+          <div className="stat-icon-wrapper success" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+            <CheckCircle2 size={24} />
           </div>
-          <div className="summary-info">
-            <span className="summary-value">{summaryStats.late}</span>
-            <span className="summary-label">Atrasados</span>
+          <div className="stat-content">
+            <span className="stat-value">{summaryStats.completed}</span>
+            <span className="stat-label">Concluídos</span>
+          </div>
+        </div>
+        <div className="stat-card stat-urgent">
+          <div className="stat-icon-wrapper urgent">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value">{summaryStats.late}</span>
+            <span className="stat-label">Atrasados</span>
           </div>
         </div>
       </div>
@@ -436,7 +461,7 @@ export default function Projetos() {
                   {/* Tier 1: Title Area */}
                   <div className="projeto-title-row">
                     <div className="projeto-title-wrapper">
-                      <h3>{proj.name}</h3>
+                      <h3 title={proj.name}>{proj.name}</h3>
                       <div className="projeto-badges" style={{ marginTop: '4px' }}>
                         <span
                           className="badge-status"
@@ -476,7 +501,7 @@ export default function Projetos() {
                   </div>
 
                   {/* Tier 2: Description */}
-                  <div className="projeto-subtitle">
+                  <div className="projeto-subtitle" title={proj.description}>
                     {proj.description || '\u00A0'}
                   </div>
 

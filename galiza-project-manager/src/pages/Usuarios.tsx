@@ -18,7 +18,8 @@ import {
   LogOut,
   Phone,
   BadgeCheck,
-  Briefcase
+  Briefcase,
+  Calendar
 } from 'lucide-react';
 import { AppContext } from '../App';
 import './Usuarios.css';
@@ -165,33 +166,56 @@ export default function Usuarios() {
   }
 
   return (
-    <div className="page-container animate-fadeIn">
-      <div className="usuarios-header">
+    <div className="dashboard-container animate-fadeIn">
+      <div className="dashboard-header">
         <div>
           <h1>Gerenciamento de Usuários</h1>
-          <p>Gerencie acessos e permissões do sistema</p>
+          <p className="dashboard-subtitle">Gerencie acessos e permissões do sistema</p>
         </div>
-        <button className="btn-primary" onClick={handleOpenCreate}>
-          <Plus size={18} />
-          <span>Novo Usuário</span>
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="dashboard-date">
+            <Calendar size={16} />
+            <span>{new Date().toLocaleDateString('pt-BR', { 
+              weekday: 'long', 
+              day: 'numeric', 
+              month: 'long',
+              year: 'numeric'
+            })}</span>
+          </div>
+          <button className="btn-primary" onClick={handleOpenCreate}>
+            <Plus size={18} />
+            <span>Novo Usuário</span>
+          </button>
+        </div>
       </div>
 
-      <div className="usuarios-stats">
-        <div className="stat-item">
-          <Users size={20} />
-          <span className="stat-value">{users.length}</span>
-          <span className="stat-label">Total de Usuários</span>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper">
+            <Users size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value">{users.length}</span>
+            <span className="stat-label">Total de Usuários</span>
+          </div>
         </div>
-        <div className="stat-item">
-          <Shield size={20} />
-          <span className="stat-value">{users.filter(u => u.role === 'admin' || u.role === 'sudo').length}</span>
-          <span className="stat-label">Administradores</span>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper admin" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+            <Shield size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value">{users.filter(u => u.role === 'admin' || u.role === 'sudo').length}</span>
+            <span className="stat-label">Administradores</span>
+          </div>
         </div>
-        <div className="stat-item">
-          <Crown size={20} />
-          <span className="stat-value">{users.filter(u => u.role === 'sudo').length}</span>
-          <span className="stat-label">Sudo</span>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper sudo" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+            <Crown size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value">{users.filter(u => u.role === 'sudo').length}</span>
+            <span className="stat-label">Sudo</span>
+          </div>
         </div>
       </div>
 

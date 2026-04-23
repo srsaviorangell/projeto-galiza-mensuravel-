@@ -455,7 +455,7 @@ if(!linkForm.url || !linkForm.title) {
                       className="btn-registrar" 
                       onClick={() => openExecutionModal(task)}
                       disabled={!task.assigneeId}
-                      style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : {}}
+                      style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none', border: '1px solid rgba(255,255,255,0.1)' } : {}}
                     >
                        {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
                     </button>
@@ -518,7 +518,11 @@ if(!linkForm.url || !linkForm.title) {
                   </div>
 
                   <div className="rtc-actions">
-                    <button className="btn-registrar" style={{ background: 'linear-gradient(135deg, var(--success), #2DD4BF)' }} onClick={() => openHistoryModal(task)}>
+                    <button 
+                        className="btn-registrar" 
+                        style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.4)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(16, 185, 129, 0.2)' }} 
+                        onClick={() => openHistoryModal(task)}
+                    >
                        Ver Histórico
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>

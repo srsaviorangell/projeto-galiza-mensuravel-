@@ -220,57 +220,67 @@ export default function Admin() {
   };
 
   return (
-    <div className="admin-container animate-fadeIn">
-      <div className="admin-header">
+    <div className="dashboard-container animate-fadeIn">
+      <div className="dashboard-header">
         <div>
           <h1>Painel Administrativo</h1>
-          <p>Visão geral e relatórios do sistema</p>
+          <p className="dashboard-subtitle">Visão geral e relatórios do sistema</p>
         </div>
-        <button className="btn-report" onClick={() => setShowReportModal(true)}>
-          <FileText size={18} />
-          <span>Gerar Relatório</span>
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="dashboard-date">
+            <Calendar size={16} />
+            <span>{new Date().toLocaleDateString('pt-BR', { 
+              weekday: 'long', 
+              day: 'numeric', 
+              month: 'long',
+              year: 'numeric'
+            })}</span>
+          </div>
+          <button className="btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setShowReportModal(true)}>
+            <FileText size={18} />
+            <span>Gerar Relatório</span>
+          </button>
+        </div>
       </div>
 
-      <div className="admin-metrics">
-        <div className="metric-card">
-          <div className="metric-icon projects">
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon-wrapper">
             <FolderKanban size={24} />
           </div>
-          <div className="metric-content">
-            <span className="metric-value">{projects.length}</span>
-            <span className="metric-label">Projetos</span>
+          <div className="stat-content">
+            <span className="stat-value">{projects.length}</span>
+            <span className="stat-label">Projetos</span>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="metric-icon collaborators">
+        <div className="stat-card">
+          <div className="stat-icon-wrapper admin" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
             <Users size={24} />
           </div>
-          <div className="metric-content">
-            <span className="metric-value">{users.length}</span>
-            <span className="metric-label">Colaboradores</span>
+          <div className="stat-content">
+            <span className="stat-value">{users.length}</span>
+            <span className="stat-label">Colaboradores</span>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="metric-icon progress">
+        <div className="stat-card">
+          <div className="stat-icon-wrapper success" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
             <TrendingUp size={24} />
           </div>
-          <div className="metric-content">
-            <span className="metric-value">{overallProgress}%</span>
-            <span className="metric-label">Conclusão Geral</span>
-            <span className="metric-sub">{stats.completedTasks} de {stats.completedTasks + stats.pendingTasks} tarefas</span>
+          <div className="stat-content">
+            <span className="stat-value">{overallProgress}%</span>
+            <span className="stat-label">Conclusão Geral</span>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="metric-icon urgent">
+        <div className="stat-card">
+          <div className="stat-icon-wrapper urgent">
             <AlertTriangle size={24} />
           </div>
-          <div className="metric-content">
-            <span className="metric-value">{urgentTasks}</span>
-            <span className="metric-label">Urgentes</span>
+          <div className="stat-content">
+            <span className="stat-value">{urgentTasks}</span>
+            <span className="stat-label">Urgentes</span>
           </div>
         </div>
       </div>

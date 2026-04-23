@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { AppContext } from '../App';
 import './Login.css';
+import logoIcon from '../assets/logos/logo-icon.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -34,11 +35,11 @@ export default function Login() {
       <div className="login-backdrop"></div>
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo">
-            <Shield size={32} />
+          <div className="login-logo-container">
+            <img src={logoIcon} alt="Galiza Logo" className="login-g-logo" />
           </div>
           <h1>Galiza</h1>
-          <p>Gestão de Projetos</p>
+          <p>Gestão de Atividades</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

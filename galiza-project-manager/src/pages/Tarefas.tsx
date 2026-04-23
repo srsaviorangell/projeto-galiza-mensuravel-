@@ -6,7 +6,7 @@ import { AppContext } from '../App';
 import { 
   Plus, Search, Filter, MoreVertical, Edit3, Trash2, 
   CheckCircle2, Clock, AlertCircle, Link2, 
-  CalendarDays, User as UserIcon, X, History 
+  CalendarDays, Calendar, User as UserIcon, X, History 
 } from 'lucide-react';
 import { CircularProgress } from '../components/CircularProgress';
 import './Tarefas.css';
@@ -215,48 +215,67 @@ setExecutionModalTask(null);
   const assignees = getAllAssignees();
 
   return (
-    <div className="tarefas-container animate-fadeIn">
-      {/* Header */}
-      <div className="tarefas-header-row">
-        <div className="tarefas-title-area">
-          <h2>Central de Tarefas</h2>
-          <p>Gerencie atividades do projeto ou tarefas avulsas operacionais.</p>
+    <div className="dashboard-container animate-fadeIn">
+      {/* ===== Header ===== */}
+      <div className="dashboard-header">
+        <div>
+          <h1>Central de Tarefas</h1>
+          <p className="dashboard-subtitle">Gerencie atividades do projeto ou tarefas avulsas operacionais.</p>
         </div>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
-          <Plus size={18} /> Nova Tarefa
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="dashboard-date">
+            <Calendar size={16} />
+            <span>{new Date().toLocaleDateString('pt-BR', { 
+              weekday: 'long', 
+              day: 'numeric', 
+              month: 'long',
+              year: 'numeric'
+            })}</span>
+          </div>
+          <button className="btn-primary" onClick={() => handleOpenModal()}>
+            <Plus size={18} /> Nova Tarefa
+          </button>
+        </div>
       </div>
 
-      {/* Stats Cards (Mini Dashboard for Tasks) */}
-      <div className="pd-stats-row">
-          <div className="pd-stat-card">
-              <div className="stat-info">
-                  <span className="stat-label">Total de Tarefas</span>
-                  <span className="stat-value">{tasks.length}</span>
-              </div>
-              <div className="stat-icon trend"><CheckCircle2 size={20} /></div>
+      {/* ===== Summary Cards ===== */}
+      <div className="stats-grid">
+        <div className="stat-card stat-projects">
+          <div className="stat-icon-wrapper">
+            <CheckCircle2 size={24} />
           </div>
-          <div className="pd-stat-card">
-              <div className="stat-info">
-                  <span className="stat-label">A Fazer</span>
-                  <span className="stat-value">{displayedTasks.filter(t => t.status === 'A Fazer').length}</span>
-              </div>
-              <div className="stat-icon clock"><Clock size={20} /></div>
+          <div className="stat-content">
+            <span className="stat-value">{tasks.length}</span>
+            <span className="stat-label">Total de Tarefas</span>
           </div>
-          <div className="pd-stat-card">
-              <div className="stat-info">
-                  <span className="stat-label">Concluídas</span>
-                  <span className="stat-value text-success">{displayedTasks.filter(t => t.status === 'Concluída').length}</span>
-              </div>
-              <div className="stat-icon check"><CheckCircle2 size={20} /></div>
+        </div>
+        <div className="stat-card stat-progress">
+          <div className="stat-icon-wrapper" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+            <Clock size={24} />
           </div>
-          <div className="pd-stat-card">
-              <div className="stat-info">
-                  <span className="stat-label">Tarefas Avulsas</span>
-                  <span className="stat-value">{displayedTasks.filter(t => !t.projectId).length}</span>
-              </div>
-              <div className="stat-icon target"><Link2 size={20} /></div>
+          <div className="stat-content">
+            <span className="stat-value">{displayedTasks.filter(t => t.status === 'A Fazer').length}</span>
+            <span className="stat-label">A Fazer</span>
           </div>
+        </div>
+        <div className="stat-card stat-tasks">
+          <div className="stat-icon-wrapper success" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+            <CheckCircle2 size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value text-success">{displayedTasks.filter(t => t.status === 'Concluída').length}</span>
+            <span className="stat-label">Concluídas</span>
+          </div>
+        </div>
+        <div className="stat-card stat-urgent">
+          <div className="stat-icon-wrapper urgent" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }}>
+            <Link2 size={24} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-value">{displayedTasks.filter(t => !t.projectId).length}</span>
+            <span className="stat-label">Tarefas Avulsas</span>
+          </div>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -323,7 +342,7 @@ setExecutionModalTask(null);
               {/* CAMADA 1: HEADER */}
               <div className="rich-task-header">
                 <div>
-                  <span className="rtc-title" style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
+                  <span className="rtc-title" title={task.title || task.name} style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
                   {pName ? (
                     <div className="rtc-project-badge">
                         <Link2 size={10} /> {pName}
@@ -406,9 +425,9 @@ setExecutionModalTask(null);
               <div className="rtc-actions">
                 <button 
                    className="btn-registrar" 
-                   onClick={() => openExecutionModal(task)}
+                   onClick={() => isDone ? openHistoryModal(task) : openExecutionModal(task)}
                    disabled={!task.assigneeId}
-                   style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : (isDone ? { background: 'linear-gradient(135deg, var(--success), #2DD4BF)' } : {})}
+                   style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : (isDone ? { background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.4)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(16, 185, 129, 0.2)' } : {})}
                 >
                     {isDone ? 'Ver Histórico' : (task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável')}
                 </button>
