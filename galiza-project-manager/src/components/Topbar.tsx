@@ -180,85 +180,87 @@ export default function Topbar() {
       </nav>
 
       <div className="topbar-actions">
-        <div className="notification-wrapper" ref={notifRef}>
-          <button 
-            className="action-button icon-btn"
-            onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </button>
-          
-          {showNotifications && (
-            <div className="notification-dropdown">
-              <div className="notification-header">
-                <h4>Notificações</h4>
-                <span className="notification-count">{notifications.length} itens</span>
-              </div>
-              <div className="notification-list">
-                {notifications.length === 0 ? (
-                  <div className="notification-empty">
-                    <Bell size={32} />
-                    <p>Nenhuma notificação</p>
-                  </div>
-                ) : (
-                  notifications.map(notif => (
-                    <div key={notif.id} className="notification-item">
-                      <div 
-                        className="notification-icon"
-                        style={{ color: getNotificationColor(notif.type) }}
-                      >
-                        {getNotificationIcon(notif.type)}
-                      </div>
-                      <div className="notification-content">
-                        <span className="notification-title">{notif.title}</span>
-                        <span className="notification-message">{notif.message}</span>
-                        <span className="notification-time">
-                          {notif.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
+        <div className="bottom-nav-actions">
+          <div className="notification-wrapper" ref={notifRef}>
+            <button 
+              className="action-button icon-btn"
+              onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+            </button>
+            
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notification-header">
+                  <h4>Notificações</h4>
+                  <span className="notification-count">{notifications.length} itens</span>
+                </div>
+                <div className="notification-list">
+                  {notifications.length === 0 ? (
+                    <div className="notification-empty">
+                      <Bell size={32} />
+                      <p>Nenhuma notificação</p>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="user-menu-wrapper" ref={userRef}>
-          <button 
-            className="action-button icon-btn"
-            onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }}
-          >
-            <User size={20} />
-          </button>
-          
-          {showUserMenu && (
-            <div className="user-dropdown">
-              <div className="user-info">
-                <div className="user-avatar">{currentUser?.name?.charAt(0) || 'U'}</div>
-                <div className="user-details">
-                  <span className="user-name">{currentUser?.name}</span>
-                  <span className="user-role">{currentUser?.role}</span>
+                  ) : (
+                    notifications.map(notif => (
+                      <div key={notif.id} className="notification-item">
+                        <div 
+                          className="notification-icon"
+                          style={{ color: getNotificationColor(notif.type) }}
+                        >
+                          {getNotificationIcon(notif.type)}
+                        </div>
+                        <div className="notification-content">
+                          <span className="notification-title">{notif.title}</span>
+                          <span className="notification-message">{notif.message}</span>
+                          <span className="notification-time">
+                            {notif.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="user-menu-items">
-                <button onClick={toggleTheme}>
-                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                  {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
-                </button>
-                <button onClick={handleLogout} className="logout-btn">
-                  <LogOut size={18} />
-                  Sair
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <button className="action-button icon-btn" onClick={toggleTheme}>
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+          <div className="user-menu-wrapper" ref={userRef}>
+            <button 
+              className="action-button icon-btn"
+              onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }}
+            >
+              <User size={20} />
+            </button>
+            
+            {showUserMenu && (
+              <div className="user-dropdown">
+                <div className="user-info">
+                  <div className="user-avatar">{currentUser?.name?.charAt(0) || 'U'}</div>
+                  <div className="user-details">
+                    <span className="user-name">{currentUser?.name}</span>
+                    <span className="user-role">{currentUser?.role}</span>
+                  </div>
+                </div>
+                <div className="user-menu-items">
+                  <button onClick={toggleTheme}>
+                    {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                    {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
+                  </button>
+                  <button onClick={handleLogout} className="logout-btn">
+                    <LogOut size={18} />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button className="action-button icon-btn theme-btn" onClick={toggleTheme}>
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+        </div>
         
         <button 
           className="action-button icon-btn mobile-menu-btn"

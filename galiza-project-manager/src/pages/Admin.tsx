@@ -15,6 +15,7 @@ export default function Admin() {
   const { projects, tasks, users, stats } = useContext(AppContext);
   const navigate = useNavigate();
   const [showReportModal, setShowReportModal] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string, filename: string, doc: any } | null>(null);
 
   const allAssignees = useMemo(() => {
     return users.map(u => ({ id: u.id, name: u.name, type: 'user' }));
@@ -90,69 +91,87 @@ export default function Admin() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     
-    // --- Header ---
-    doc.setFillColor(33, 37, 41); // Dark Color
-    doc.rect(0, 0, pageWidth, 25, 'F');
+    // --- Luxury Header ---
+    doc.setFillColor(10, 12, 16); // Deep dark background
+    doc.rect(0, 0, pageWidth, 28, 'F');
+    // Accent line below it
+    doc.setFillColor(255, 97, 48); // Orange Accent
+    doc.rect(0, 28, pageWidth, 1.5, 'F');
+    
+    // Title / Brand
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('G A L I Z A', 15, 19);
+    
+    // Also fixing standard accents like "Gestão", "Página", "Relatório" that had typos
+    doc.setTextColor(180, 180, 180);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('GESTÃO DE PROJETOS', 64, 18);
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
+    doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 15, 18, { align: 'right' });
+    
+    // --- Report Subtitle ---
+    doc.setTextColor(10, 12, 16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('GALIZA', 15, 17);
+    doc.text(title.toUpperCase(), 15, 42);
     
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Gesto de Projetos Profissional', 55, 16);
-    
-    doc.setFontSize(9);
-    doc.text(`Data: ${new Date().toLocaleString()}`, pageWidth - 15, 16, { align: 'right' });
-    
-    // --- Report Title ---
-    doc.setTextColor(33, 37, 41);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title.toUpperCase(), 15, 40);
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(15, 45, pageWidth - 15, 45);
     
     // --- KPI Section ---
+    let tableStartY = 55;
     if (kpis.length > 0) {
       let xPos = 15;
       const kpiWidth = (pageWidth - 45) / 4;
       
       kpis.forEach(kpi => {
-        // Draw Card
-        doc.setFillColor(248, 249, 250);
-        doc.roundedRect(xPos, 48, kpiWidth, 25, 3, 3, 'F');
-        doc.setDrawColor(222, 226, 230);
-        doc.roundedRect(xPos, 48, kpiWidth, 25, 3, 3, 'S');
+        // Subtle Card
+        doc.setFillColor(250, 251, 252);
+        doc.roundedRect(xPos, 52, kpiWidth, 22, 2, 2, 'F');
+        doc.setDrawColor(230, 230, 230);
+        doc.roundedRect(xPos, 52, kpiWidth, 22, 2, 2, 'S');
         
         // Content
-        doc.setTextColor(108, 117, 125);
-        doc.setFontSize(8);
-        doc.text(kpi.label.toUpperCase(), xPos + 5, 55);
+        doc.setTextColor(100, 110, 120);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text(kpi.label.toUpperCase(), xPos + 4, 59);
         
-        doc.setTextColor(33, 37, 41);
+        doc.setTextColor(255, 97, 48); // Accent Orange
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text(String(kpi.value), xPos + 5, 65);
+        doc.text(String(kpi.value), xPos + 4, 69);
         
         xPos += kpiWidth + 5;
       });
+      tableStartY = 85;
     }
 
     // --- Data Table ---
-    const tableStartY = kpis.length > 0 ? 85 : 50;
-    
     autoTable(doc, {
       startY: tableStartY,
       head: [Object.keys(data[0])],
       body: data.map(obj => Object.values(obj)),
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { 
+        fontSize: 9, 
+        cellPadding: 4, 
+        font: 'helvetica',
+        lineColor: [230, 230, 230],
+        lineWidth: 0.1
+      },
       headStyles: { 
-        fillColor: [52, 152, 219], 
+        fillColor: [10, 12, 16], // Dark Luxury Header
         textColor: 255, 
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'left'
       },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
+      bodyStyles: { textColor: [40, 40, 40] },
+      alternateRowStyles: { fillColor: [248, 249, 251] },
       margin: { left: 15, right: 15 }
     });
     
@@ -161,18 +180,21 @@ export default function Admin() {
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Pgina ${i} de ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        doc.text('Relatrio Gerado pelo Sistema Galiza', 15, doc.internal.pageSize.height - 10);
+        doc.setTextColor(120);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text('Relatório Gerado Automáticamente - Galiza', 15, doc.internal.pageSize.height - 10);
     }
 
-    doc.save(`${title.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
+    const filename = `${title.replace(/\s+/g, '_').toLowerCase()}_${new Date().getTime()}.pdf`;
+    return { doc, filename };
   };
 
   const generateReport = (type) => {
+    let result = null;
     switch(type) {
       case 'Geral':
-        generatePDF('Relatório de Status Geral', 
+        result = generatePDF('Relatório de Status Geral', 
           [
             { Indicador: 'Total de Projetos ativos no sistema', Valor: stats.totalProjects },
             { Indicador: 'Usuários cadastrados na plataforma', Valor: users.length },
@@ -196,7 +218,7 @@ export default function Admin() {
           'Tarefas': `${p.completed}/${p.total}`,
           'Prazo Restante': p.daysLeft !== null ? `${p.daysLeft} dias` : '-'
         }));
-        generatePDF('Relatório de Progresso de Projetos', projData, [
+        result = generatePDF('Relatório de Progresso de Projetos', projData, [
           { label: 'Total Projetos', value: projects.length },
           { label: 'Concluídos', value: projects.filter(p => p.progress === 100).length },
           { label: 'Atrasados', value: projectStatus.filter(p => p.isLate).length }
@@ -210,11 +232,16 @@ export default function Admin() {
           'Pendentes': c.todo + c.inProgress,
           'Desempenho': `${c.progress}%`
         }));
-        generatePDF('Relatório de Gestão de Equipe', collabData, [
+        result = generatePDF('Relatório de Gestão de Equipe', collabData, [
           { label: 'Total Equipe', value: users.length },
           { label: 'Melhor Desempenho', value: tasksByCollaborator.length > 0 ? `${Math.max(...tasksByCollaborator.map(c => c.progress))}%` : '0%' }
         ]);
         break;
+    }
+    
+    if (result) {
+      const url = result.doc.output('bloburl');
+      setPdfPreview({ url, filename: result.filename, doc: result.doc });
     }
     setShowReportModal(false);
   };
@@ -446,6 +473,36 @@ export default function Admin() {
                   <Download size={18} />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {pdfPreview && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal-content" style={{ width: '90%', height: '90vh', maxWidth: 'none', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FileText style={{ color: 'var(--accent)' }} size={24} />
+                <h3 style={{ margin: 0, color: 'white', fontFamily: 'var(--font-display)', fontSize: '18px' }}>Pré-visualização do Relatório</h3>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <button className="btn-primary" onClick={() => pdfPreview.doc.save(pdfPreview.filename)} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 16px', borderRadius: 'var(--radius)' }}>
+                  <Download size={18} />
+                  <span>Baixar PDF</span>
+                </button>
+                <button className="icon-btn" onClick={() => setPdfPreview(null)} style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="modal-body" style={{ flex: 1, padding: 0, background: '#323639' }}>
+              <iframe 
+                src={pdfPreview.url} 
+                style={{ width: '100%', height: '100%', border: 'none' }} 
+                title="Pré-visualização de Documento"
+              />
             </div>
           </div>
         </div>,
