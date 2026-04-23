@@ -23,8 +23,17 @@
   .main-content { padding: 1.5rem 2rem; }
 }
 
+@media (max-width: 930px) {
+  .main-content { 
+    padding-bottom: calc(1.5rem + 76px); 
+  }
+}
+
 @media (max-width: 768px) {
-  .main-content { padding: 1rem; }
+  .main-content { 
+    padding: 1rem; 
+    padding-bottom: calc(1rem + 76px); 
+  }
 }
 
 /* ─── Page Layout ─── */
