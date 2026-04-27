@@ -703,8 +703,8 @@
 .rtc-icon-btn {
   width: 40px;
   height: 40px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-main);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(15, 20, 30, 0.50);
   color: var(--text-tertiary);
   border-radius: var(--radius-sm);
   display: flex;

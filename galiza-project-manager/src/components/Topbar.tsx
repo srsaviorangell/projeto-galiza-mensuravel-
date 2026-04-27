@@ -34,11 +34,10 @@ export default function Topbar() {
   const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('galiza_theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
+    const savedTheme = localStorage.getItem('galiza_theme') || 'dark';
+    const isDark = savedTheme === 'dark';
+    setIsDarkMode(isDark);
+    document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
   useEffect(() => {

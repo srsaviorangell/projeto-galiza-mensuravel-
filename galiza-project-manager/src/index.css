@@ -87,66 +87,66 @@
 }
 
 [data-theme="light"] {
-  /* ─── Light Mode Palette: Luxurious Light ─── */
-  --bg-deep: #C6CAC3;
-  --bg-main: #E1E4E1;
-  --bg-navbar: #ECEEEC;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #F6F7F6;
-  --bg-elevated: #FFFFFF;
-  --bg-surface: rgba(255, 255, 255, 0.40);
-  --bg-surface-strong: rgba(255, 255, 255, 0.65);
-  --bg-secondary: #F1F3F1;
-  --bg-primary: #FFFFFF;
+  /* ─── Light Mode Palette: Caliza Infra ─── */
+  --bg-deep: #FDBA74;
+  --bg-main: #FFEDD5;
+  --bg-navbar: rgba(255, 255, 255, 0.45);
+  --bg-card: rgba(10, 15, 25, 0.92);
+  --bg-card-hover: rgba(10, 15, 25, 0.96);
+  --bg-elevated: rgba(10, 15, 25, 0.94);
+  --bg-surface: rgba(10, 15, 25, 0.90);
+  --bg-surface-strong: rgba(10, 15, 25, 0.96);
+  --bg-secondary: #FFEDD5;
+  --bg-primary: rgba(10, 15, 25, 0.92);
 
-  /* Accent: Coral Orange & Lilac */
-  --accent-orange: #FE5D2D;
-  --accent: #FE5D2D;
-  --accent-hot: #E04E20;
-  --accent-amber: #8E6F8E; /* Darker Lilac for text readability */
-  --accent-glow: rgba(254, 93, 45, 0.25);
-  --accent-subtle: rgba(254, 93, 45, 0.08);
-  --accent-light: rgba(254, 93, 45, 0.12);
-  --accent-border: rgba(254, 93, 45, 0.25);
-  --accent-hover: #E84D20;
-  --accent-green: #B5BCB3; /* Sage from palette 2 */
+  /* Accent: Deep Galiza Orange */
+  --accent-orange: #EA580C;
+  --accent: #EA580C;
+  --accent-hot: #C2410C;
+  --accent-amber: #FDBA74;
+  --accent-glow: rgba(234, 88, 12, 0.30);
+  --accent-subtle: rgba(234, 88, 12, 0.10);
+  --accent-light: rgba(234, 88, 12, 0.15);
+  --accent-border: rgba(234, 88, 12, 0.25);
+  --accent-hover: #C2410C;
+  --accent-green: #34D399;
 
   /* Semantic */
-  --success: #24475B; /* Dark teal for contrast */
-  --success-light: rgba(36, 71, 91, 0.1);
-  --danger: #FE5D2D;
-  --danger-light: rgba(254, 93, 45, 0.12);
-  --warning: #24475B;
-  --warning-light: rgba(36, 71, 91, 0.12);
-  --info: #24475B;
-  --info-light: rgba(36, 71, 91, 0.12);
+  --success: #34D399;
+  --success-light: rgba(52, 211, 153, 0.15);
+  --danger: #F43F5E;
+  --danger-light: rgba(244, 63, 94, 0.15);
+  --warning: #EA580C;
+  --warning-light: rgba(234, 88, 12, 0.15);
+  --info: #38BDF8;
+  --info-light: rgba(56, 189, 248, 0.15);
 
-  /* Text - Very dark green/black #1F231F and Dark Teal #24475B */
-  --text-primary: #1F231F;
-  --text-secondary: #24475B;
-  --text-tertiary: #B5BCB3;
-  --text: #1F231F;
+  /* Text — White on dark glass cards */
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-tertiary: #94A3B8;
+  --text: #F1F5F9;
 
-  /* Borders */
-  --border: rgba(31, 35, 31, 0.08);
-  --border-light: rgba(31, 35, 31, 0.04);
-  --border-subtle: rgba(31, 35, 31, 0.03);
-  --border-strong: rgba(31, 35, 31, 0.15);
+  /* Borders — Translucent white for glass edges */
+  --border: rgba(255, 255, 255, 0.10);
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.03);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  /* Shadows - softer and less dark */
-  --shadow-sm: 0 2px 8px rgba(31, 35, 31, 0.04);
-  --shadow: 0 4px 16px rgba(31, 35, 31, 0.06);
-  --shadow-md: 0 8px 24px rgba(31, 35, 31, 0.08);
-  --shadow-card: 0 8px 32px rgba(31, 35, 31, 0.06), 0 0 0 1px var(--border-light);
+  /* Shadows — Deeper for dark glass on bright bg */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--border-light);
   --shadow-glow: 0 4px 30px var(--accent-glow);
 
-  /* Mesh Gradient Colors for Light Mode */
-  --mesh-1: rgba(254, 93, 45, 0.1); /* Soft Orange */
-  --mesh-2: rgba(224, 201, 221, 0.5); /* Lilac */
-  --mesh-3: rgba(255, 255, 255, 0.7); /* White highlight */
+  /* Mesh Gradient — Warm pastel orange atmosphere */
+  --mesh-1: rgba(253, 186, 116, 0.6);
+  --mesh-2: rgba(255, 237, 213, 0.8);
+  --mesh-3: rgba(255, 255, 255, 0.5);
   
-  --primary: #1F231F;
-  --primary-light: rgba(31, 35, 31, 0.05);
+  --primary: #F8FAFC;
+  --primary-light: rgba(248, 250, 252, 0.08);
 }
 
 *,

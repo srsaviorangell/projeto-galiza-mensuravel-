@@ -315,7 +315,7 @@ if(!linkForm.url || !linkForm.title) {
             <h4>Colaboradores</h4>
             <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>Gerencie quem tem acesso de execução à este projeto.</p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <select style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+              <select style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15, 20, 30, 0.60)', color: 'var(--text-primary)' }}>
                 <option>Selecione um técnico...</option>
               </select>
               <button className="btn-primary" style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}><Plus size={18} /></button>
@@ -332,13 +332,13 @@ if(!linkForm.url || !linkForm.title) {
               </div>
               
               {!(project.links && project.links.length > 0) ? (
-                 <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '1.5rem 0', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                 <div style={{ color: 'var(--text-tertiary)', fontSize: '13px', padding: '1.5rem 0', textAlign: 'center', background: 'rgba(15, 20, 30, 0.40)', borderRadius: 'var(--radius-md)' }}>
                    Nenhum documento, foto ou link externo atrelado a este projeto.
                  </div>
               ) : (
                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                    {project.links.map((link: any) => (
-                      <div key={link.id} style={{ display: 'flex', flexDirection: 'column', padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', width: '220px', position: 'relative' }}>
+                      <div key={link.id} style={{ display: 'flex', flexDirection: 'column', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-md)', background: 'rgba(15, 20, 30, 0.50)', width: '220px', position: 'relative' }}>
                          <button style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }} onClick={() => handleRemoveLink(link.id)}>
                             <Trash2 size={14}/>
                          </button>

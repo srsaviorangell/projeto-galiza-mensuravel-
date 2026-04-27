@@ -84,8 +84,8 @@
 
 /* Priority stat card: Neutral Ember glass */
 .stat-projects {
-  background: var(--accent-subtle) !important;
-  border: 1px solid var(--accent-border) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-strong) !important;
   border-top: 3px solid var(--accent-orange) !important;
   box-shadow: var(--shadow-md) !important;
   backdrop-filter: blur(24px) saturate(130%);
@@ -209,12 +209,12 @@
 }
 
 .dashboard-card {
-  background: rgba(26, 30, 41, 0.65) !important;
+  background: rgba(10, 15, 25, 0.92) !important;
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-radius: var(--radius-lg);
   padding: 1.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
   transition: var(--transition);
 }
 
@@ -363,8 +363,8 @@
 }
 
 .sparkline-item-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: rgba(15, 20, 30, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 16px;
   position: relative;

@@ -336,7 +336,7 @@
   font-family: var(--font-body);
   border: 1.5px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--bg-main);
+  background: rgba(15, 20, 30, 0.60);
   color: var(--text-primary);
   transition: var(--transition);
 }
@@ -386,7 +386,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
-  background: var(--bg-main);
+  background: rgba(15, 20, 30, 0.50);
 }
 
 .upload-box:hover {
