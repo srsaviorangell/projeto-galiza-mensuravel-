@@ -294,7 +294,7 @@ export default function Dashboard() {
       </div>
 
       {/* ===== Stats Cards ===== */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className="stats-grid">
         <div className="stat-card stat-projects">
           <div className="stat-icon-wrapper">
             <FolderKanban size={24} />

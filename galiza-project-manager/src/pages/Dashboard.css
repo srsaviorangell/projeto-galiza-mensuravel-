@@ -26,6 +26,18 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .dashboard-header h1 {
+  background: linear-gradient(135deg, #1e293b 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="light"] .dashboard-subtitle {
+  color: #475569;
 }
 
 .dashboard-subtitle {
@@ -561,10 +573,59 @@
 }
 
 @media (max-width: 600px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .dashboard-container {
+    padding: 0.25rem;
+    gap: 1.5rem;
+  }
+
+  .stats-grid { 
+    grid-template-columns: 1fr; 
+    gap: 1rem;
+  }
+
+  .stat-card {
+    min-height: auto;
+    padding: 1.25rem;
+  }
+
+  .stat-value {
+    font-size: 26px;
+  }
+
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 28px;
+  }
+
+  .dashboard-subtitle {
+    font-size: 13px;
+  }
+
+  .sparklines-list {
+    grid-template-columns: 1fr;
+  }
+
+  .project-mini-card {
+    padding: 1rem;
+  }
+
+  .recent-projects-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .card-header .card-action {
+    width: 100%;
+    justify-content: space-between;
   }
 }
