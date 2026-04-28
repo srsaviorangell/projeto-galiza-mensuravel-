@@ -228,8 +228,6 @@ if(!linkForm.url || !linkForm.title) {
    };
    
    const handleRemoveLink = async (linkId: number) => {
-      const confirmDel = window.confirm('Remover este anexo do projeto?');
-      if(!confirmDel) return;
       try {
         const updatedLinks = (project.links || []).filter((l:any) => l.id !== linkId);
         await updateProject(project.id, { links: updatedLinks });
@@ -461,7 +459,7 @@ if(!linkForm.url || !linkForm.title) {
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)}><History size={16}/></button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>
-                    <button className="rtc-icon-btn danger" onClick={() => { if(window.confirm('Excluir atividade?')) deleteTask(task.id); }}><Trash2 size={16}/></button>
+                    <button className="rtc-icon-btn danger" onClick={() => deleteTask(task.id)}><Trash2 size={16}/></button>
                   </div>
                 </div>
               )})}
@@ -526,7 +524,7 @@ if(!linkForm.url || !linkForm.title) {
                        Ver Histórico
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>
-                    <button className="rtc-icon-btn danger" onClick={() => { if(window.confirm('Excluir?')) deleteTask(task.id); }}><Trash2 size={16}/></button>
+                    <button className="rtc-icon-btn danger" onClick={() => deleteTask(task.id)}><Trash2 size={16}/></button>
                   </div>
                 </div>
               );})}

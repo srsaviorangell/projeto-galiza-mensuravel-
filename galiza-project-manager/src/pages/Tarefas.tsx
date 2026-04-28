@@ -53,7 +53,6 @@ export default function Tarefas() {
   };
 
   const handleDeleteHistoryEntry = async (historyEntry: any) => {
-    if (!window.confirm('Excluir este registro e reverter a atividade para o estado anterior?')) return;
     
     setDisintegratingHistoryId(historyEntry.id);
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -233,7 +232,6 @@ setExecutionModalTask(null);
   };
 
   const handleRevertExecution = async (task: any) => {
-    if (!window.confirm('Tem certeza que deseja reverter a conclusão desta atividade? A última execução lançada será removida.')) return;
     const currentTask = tasks.find((t: any) => t.id === task.id);
     if (!currentTask) return;
 
@@ -276,7 +274,6 @@ setExecutionModalTask(null);
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
       setDisintegratingTaskId(id);
       await new Promise(resolve => setTimeout(resolve, 600));
       try {
@@ -286,7 +283,6 @@ setExecutionModalTask(null);
       } finally {
         setDisintegratingTaskId(null);
       }
-    }
   };
 
   const getProjectName = (id: number | null) => {
