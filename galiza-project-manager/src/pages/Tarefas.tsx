@@ -6,13 +6,13 @@ import { AppContext } from '../App';
 import { 
   Plus, Search, Filter, MoreVertical, Edit3, Trash2, 
   CheckCircle2, Clock, AlertCircle, Link2, 
-  CalendarDays, Calendar, User as UserIcon, X, History 
+  CalendarDays, Calendar, User as UserIcon, X, History, RotateCcw 
 } from 'lucide-react';
 import { CircularProgress } from '../components/CircularProgress';
 import './Tarefas.css';
 
 export default function Tarefas() {
-  const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, addHistory, getHistory } = useContext(AppContext);
+  const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, addHistory, getHistory, deleteHistory } = useContext(AppContext);
   const navigate = useNavigate();
   
   const [filterProject, setFilterProject] = useState('all'); // 'all', 'avulsa', or projectId
@@ -51,6 +51,37 @@ export default function Tarefas() {
     const changes = await getHistory('task', task.id);
     setTaskHistory(changes || []);
   };
+
+  const handleDeleteHistoryEntry = async (historyEntry: any) => {
+    if (!window.confirm('Excluir este registro e reverter a atividade para o estado anterior?')) return;
+    try {
+      // Restaura a tarefa para o estado anterior (oldValue)
+      if (historyEntry.oldValue && historyModalTask) {
+        const oldVal = JSON.parse(historyEntry.oldValue);
+        const toRestore: any = {};
+        // status
+        if (oldVal.status !== undefined) toRestore.status = oldVal.status;
+        // medição
+        const mc = oldVal.measurementCurrent ?? oldVal.measurement_current;
+        if (mc !== undefined) toRestore.measurementCurrent = mc;
+        const mt = oldVal.measurementTarget ?? oldVal.measurement_target;
+        if (mt !== undefined) toRestore.measurementTarget = mt;
+        // execucoes
+        if (oldVal.executions !== undefined) toRestore.executions = oldVal.executions;
+
+        if (Object.keys(toRestore).length > 0) {
+          await updateTask(historyModalTask.id, toRestore);
+        }
+      }
+      // Deleta o registro do histórico
+      await deleteHistory(historyEntry.id);
+      // Atualiza a lista do modal
+      const changes = await getHistory('task', historyModalTask.id);
+      setTaskHistory(changes || []);
+    } catch (error: any) {
+      console.error('Erro ao excluir histórico:', error);
+    }
+  };
   const [executionForm, setExecutionForm] = useState({
     colaboradorId: '',
     quantidade: '',
@@ -75,14 +106,27 @@ export default function Tarefas() {
   };
   const [taskForm, setTaskForm] = useState(emptyTask);
   const [isLinked, setIsLinked] = useState(false);
+  const [expandedDoneIds, setExpandedDoneIds] = useState<Set<number>>(new Set());
 
-  // Filtering
+  const toggleDoneExpand = (id: number) => {
+    setExpandedDoneIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Filtering + Sorting (A Fazer primeiro, Concluída por último)
   const filteredTasks = useMemo(() => {
-    return displayedTasks.filter(t => {
+    const filtered = displayedTasks.filter(t => {
       const matchSearch = (t.title || t.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'all' ? true : t.status === filterStatus;
-      
       return matchSearch && matchStatus;
+    });
+    return filtered.sort((a, b) => {
+      if (a.status === 'Concluída' && b.status !== 'Concluída') return 1;
+      if (a.status !== 'Concluída' && b.status === 'Concluída') return -1;
+      return 0;
     });
   }, [displayedTasks, searchTerm, filterStatus]);
 
@@ -178,6 +222,38 @@ setExecutionModalTask(null);
       } catch (error: any) {
         console.error('Erro ao registrar execução:', error);
       }
+  };
+
+  const handleRevertExecution = async (task: any) => {
+    if (!window.confirm('Tem certeza que deseja reverter a conclusão desta atividade? A última execução lançada será removida.')) return;
+    const currentTask = tasks.find((t: any) => t.id === task.id);
+    if (!currentTask) return;
+
+    const executions: any[] = currentTask.executions || [];
+    if (executions.length === 0) {
+      // Nenhuma execução, apenas reseta status e current
+      await updateTask(currentTask.id, {
+        status: 'A Fazer',
+        measurementCurrent: 0
+      });
+      return;
+    }
+
+    // Remove a última execução
+    const lastExec = executions[executions.length - 1];
+    const newExecutions = executions.slice(0, -1);
+    const newCurrent = Math.max(0, (currentTask.measurementCurrent || 0) - (lastExec.quantidade || 0));
+    const newStatus = newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer';
+
+    try {
+      await updateTask(currentTask.id, {
+        measurementCurrent: newCurrent,
+        executions: newExecutions,
+        status: newStatus
+      });
+    } catch (error: any) {
+      console.error('Erro ao reverter execução:', error);
+    }
   };
 
   const openEditTask = (task: any) => {
@@ -315,132 +391,168 @@ setExecutionModalTask(null);
         </div>
       </div>
 
-      {/* Tasks Grid */}
-      <div className="tarefas-grid">
-        {filteredTasks.map((task) => {
-          const isDone = task.status === 'Concluída';
+      {/* ===== TWO-PANEL LAYOUT ===== */}
+      {(() => {
+        const pending = filteredTasks.filter(t => t.status !== 'Concluída');
+        const done    = filteredTasks.filter(t => t.status === 'Concluída');
+
+        const renderFullCard = (task: any, isDone = false) => {
           const pName = getProjectName(task.projectId);
           const assigneeName = getAssigneeName(task.assigneeId);
-          
           const taskPct = (task.measurementTarget || 1) > 0
             ? Math.min(((task.measurementCurrent || 0) / (task.measurementTarget || 1)) * 100, 100)
             : 0;
-
-          // Cálculo do Atraso (Sincronizado com ProjetoDetalhes)
           const dueD = task.dueDate ? new Date(task.dueDate) : null;
           if (dueD) dueD.setHours(0,0,0,0);
-          const today = new Date();
-          today.setHours(0,0,0,0);
+          const today = new Date(); today.setHours(0,0,0,0);
           const isDelayed = dueD && today.getTime() > dueD.getTime() && !isDone;
-          const daysDelayed = isDelayed ? Math.floor((today.getTime() - dueD.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          const daysDelayed = isDelayed ? Math.floor((today.getTime() - dueD!.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
           return (
-            <div 
-              key={task.id} 
-              className={`rich-task-card ${isDone ? 'rtc-status-concluida' : 'rtc-status-afazer'}`}
-            >
-              {/* CAMADA 1: HEADER */}
+            <div className={`rich-task-card ${isDone ? 'rtc-status-concluida' : 'rtc-status-afazer'}`}>
+              {/* HEADER */}
               <div className="rich-task-header">
                 <div>
                   <span className="rtc-title" title={task.title || task.name} style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
                   {pName ? (
-                    <div className="rtc-project-badge">
-                        <Link2 size={10} /> {pName}
-                    </div>
+                    <div className="rtc-project-badge"><Link2 size={10} /> {pName}</div>
                   ) : (
-                    <div className="rtc-project-badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}>
-                        ATIVIDADE AVULSA
-                    </div>
+                    <div className="rtc-project-badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}>ATIVIDADE AVULSA</div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span className="rtc-tag" style={isDone ? { backgroundColor: 'rgba(52, 211, 153, 0.1)', color: 'var(--success)', borderColor: 'rgba(52, 211, 153, 0.2)' } : {}}>{task.status}</span>
-                    <button className="rtc-icon-btn" style={{ border: 'none', background: 'transparent' }} onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}>
-                        <MoreVertical size={16}/>
-                    </button>
+                  <span className="rtc-tag" style={isDone ? { backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)' } : {}}>{task.status}</span>
+                  {!isDone && <button className="rtc-icon-btn" style={{ border: 'none', background: 'transparent' }} onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}><MoreVertical size={16}/></button>}
                 </div>
-                
                 {openMenuId === task.id && (
-                    <div className="projeto-context-menu">
-                         <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
-                         <button className="menu-danger" onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}><Trash2 size={14} /> Excluir</button>
-                    </div>
+                  <div className="projeto-context-menu">
+                    <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
+                    <button className="menu-danger" onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}><Trash2 size={14} /> Excluir</button>
+                  </div>
                 )}
               </div>
-
-              {/* CAMADA 2: DESCRIÇÃO E BADGES (ALTURA FIXA 200PX) */}
+              {/* DESC */}
               <div className="rtc-desc">
-                  <div className="rtc-info-row">
-                    <div className="rtc-color-dot" style={{ backgroundColor: task.color || 'var(--accent)' }} />
-                    <span className="rtc-priority-label">{task.priority || 'Média'}</span>
+                <div className="rtc-info-row">
+                  <div className="rtc-color-dot" style={{ backgroundColor: task.color || 'var(--accent)' }} />
+                  <span className="rtc-priority-label">{task.priority || 'Média'}</span>
+                </div>
+                <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
+                <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                  <div className="rtc-badge-item">
+                    <div className="rtc-user-avatar">{assigneeName.charAt(0).toUpperCase()}</div>
+                    <span className="rtc-user-name">{assigneeName}</span>
                   </div>
-                  <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
-                  
-                  <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-                    <div className="rtc-badge-item">
-                      <div className="rtc-user-avatar">{assigneeName.charAt(0).toUpperCase()}</div>
-                      <span className="rtc-user-name">{assigneeName}</span>
-                    </div>
-
-                    {isDelayed && (
-                      <div className="rtc-badge-item danger">
-                        <AlertCircle size={14}/> ATRASADA {daysDelayed}D
-                      </div>
-                    )}
-
-                    {task.dueDate && !isDone && (
-                      <div className="rtc-badge-item warning">
-                        <Clock size={14}/> PRAZO: {task.dueDate}
-                      </div>
-                    )}
-                  </div>
+                  {isDelayed && <div className="rtc-badge-item danger"><AlertCircle size={14}/> ATRASADA {daysDelayed}D</div>}
+                  {task.dueDate && !isDone && <div className="rtc-badge-item warning"><Clock size={14}/> PRAZO: {task.dueDate}</div>}
+                </div>
               </div>
-
-              {/* CAMADA 3: PROGRESSO (ALTURA FIXA 110PX) */}
+              {/* PROGRESSO */}
               <div className="rtc-progress-area">
-                <CircularProgress 
-                    current={task.measurementCurrent || 0} 
-                    total={task.measurementTarget || 1} 
-                    color={isDone ? 'var(--success)' : 'var(--accent)'}
-                    size={72}
-                />
+                <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} color={isDone ? 'var(--success)' : 'var(--accent)'} size={72} />
                 <div className="rtc-progress-info">
                   <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
                   <div className="rtc-progress-bar-container">
-                    <div className="rtc-progress-bar-fill" style={{ width: `${isDone ? 100 : taskPct}%` }} />
+                    <div className="rtc-progress-bar-fill" style={{ width: `${isDone ? 100 : taskPct}%`, background: isDone ? 'var(--success)' : undefined }} />
                   </div>
                 </div>
               </div>
-
-              {/* CAMADA 4: ALERT SLOT (ALTURA FIXA 44PX) */}
+              {/* ALERT */}
               <div className="rtc-alert-slot">
-                  {isDone && (
-                    <div className="rtc-alert" style={{ color: 'var(--success)' }}>
-                      <CheckCircle2 size={14}/> Tarefa finalizada com sucesso
-                    </div>
-                  )}
+                {isDone && <div className="rtc-alert" style={{ color: 'var(--success)' }}><CheckCircle2 size={14}/> Tarefa finalizada com sucesso</div>}
               </div>
-
-              {/* CAMADA 5: AÇÕES (ALTURA FIXA 90PX) */}
+              {/* AÇÕES */}
               <div className="rtc-actions">
-                <button 
-                   className="btn-registrar" 
-                   onClick={() => isDone ? openHistoryModal(task) : openExecutionModal(task)}
-                   disabled={!task.assigneeId}
-                   style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : (isDone ? { background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.4)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(16, 185, 129, 0.2)' } : {})}
-                >
-                    {isDone ? 'Ver Histórico' : (task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável')}
-                </button>
+                {isDone ? (
+                  <button className="btn-registrar" onClick={() => openHistoryModal(task)} style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                    Ver Histórico
+                  </button>
+                ) : (
+                  <button className="btn-registrar" onClick={() => openExecutionModal(task)} disabled={!task.assigneeId} style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : {}}>
+                    {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
+                  </button>
+                )}
                 <div style={{ display: 'flex', gap: '8px' }}>
+                  {isDone && isAdmin && (
+                    <button className="rtc-icon-btn" onClick={() => handleRevertExecution(task)} title="Reverter Conclusão" style={{ color: 'var(--accent)', border: '1px solid rgba(255,100,0,0.3)' }}><RotateCcw size={16}/></button>
+                  )}
                   <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
-                  <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>
-                  <button className="rtc-icon-btn danger" onClick={() => handleDelete(task.id)} title="Excluir"><Trash2 size={16}/></button>
+                  {!isDone && <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>}
+                  {!isDone && <button className="rtc-icon-btn danger" onClick={() => handleDelete(task.id)} title="Excluir"><Trash2 size={16}/></button>}
                 </div>
               </div>
             </div>
           );
-        })}
-      </div>
+        };
+
+        return (
+          <div className="tarefas-split-layout">
+            {/* ── COLUNA ESQUERDA: A FAZER ── */}
+            <div className="tarefas-split-col">
+              <div className="tarefas-col-header">
+                <Clock size={16} />
+                <span>A Fazer</span>
+                <span className="tarefas-col-count">{pending.length}</span>
+              </div>
+              <div className="tarefas-col-cards">
+                {pending.length === 0 && (
+                  <div className="tarefas-empty-state">
+                    <CheckCircle2 size={32} style={{ color: 'var(--success)', opacity: 0.5 }} />
+                    <span>Nenhuma atividade pendente!</span>
+                  </div>
+                )}
+                {pending.map(task => (
+                  <div key={task.id}>{renderFullCard(task, false)}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── COLUNA DIREITA: CONCLUÍDAS (accordion) ── */}
+            <div className="tarefas-split-col tarefas-split-done">
+              <div className="tarefas-col-header" style={{ borderColor: 'rgba(52,211,153,0.25)', color: 'var(--success)' }}>
+                <CheckCircle2 size={16} />
+                <span>Concluídas</span>
+                <span className="tarefas-col-count" style={{ background: 'rgba(52,211,153,0.15)', color: 'var(--success)' }}>{done.length}</span>
+              </div>
+              <div className="tarefas-col-cards">
+                {done.length === 0 && (
+                  <div className="tarefas-empty-state">
+                    <Clock size={32} style={{ opacity: 0.3 }} />
+                    <span>Nenhuma atividade concluída ainda.</span>
+                  </div>
+                )}
+                {done.map(task => {
+                  const isExpanded = expandedDoneIds.has(task.id);
+                  const pName = getProjectName(task.projectId);
+                  return (
+                    <div key={task.id} className="rtc-accordion">
+                      {/* ROW COLAPSADO */}
+                      <button className="rtc-accordion-row" onClick={() => toggleDoneExpand(task.id)}>
+                        <div className="rtc-accordion-left">
+                          <CheckCircle2 size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                          <span className="rtc-accordion-title">{task.title || task.name}</span>
+                          {pName && <span className="rtc-accordion-proj"><Link2 size={9}/> {pName}</span>}
+                        </div>
+                        <div className="rtc-accordion-right">
+                          <span className="rtc-tag" style={{ backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)', fontSize: '10px', padding: '2px 8px' }}>Concluída</span>
+                          <span className="rtc-accordion-chevron" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                        </div>
+                      </button>
+                      {/* CARD EXPANDIDO */}
+                      {isExpanded && (
+                        <div className="rtc-accordion-body">
+                          {renderFullCard(task, true)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
 
       {/* Execution Modal */}
       {executionModalTask && createPortal(
@@ -502,13 +614,36 @@ setExecutionModalTask(null);
                  <ul style={{ listStyle: 'none', padding: 0 }}>
                     {taskHistory.map((h: any, index) => (
                       <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                             <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' ? 'var(--success)' : 'var(--accent)' }}>
                               {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
                             </span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                              {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
+                              </span>
+                              {isAdmin && h.action === 'update' && h.oldValue && (
+                                <button
+                                  title="Excluir e reverter para estado anterior"
+                                  onClick={() => handleDeleteHistoryEntry(h)}
+                                  style={{
+                                    background: 'rgba(239,68,68,0.1)',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    borderRadius: '6px',
+                                    color: 'var(--danger)',
+                                    cursor: 'pointer',
+                                    padding: '3px 6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '11px',
+                                    lineHeight: 1
+                                  }}
+                                >
+                                  <Trash2 size={12}/> Reverter
+                                </button>
+                              )}
+                            </div>
                          </div>
                          {h.action === 'update' && h.newValue && (
                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>

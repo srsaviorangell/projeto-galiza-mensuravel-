@@ -141,6 +141,11 @@ function AppContent() {
     }));
   }, []);
 
+  const deleteHistory = useCallback(async (historyId) => {
+    const { error } = await supabase.from('history').delete().eq('id', historyId);
+    if (error) throw error;
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -409,7 +414,8 @@ function AppContent() {
     assignTask,
     fetchData,
     addHistory,
-    getHistory
+    getHistory,
+    deleteHistory
   };
 
   return (
