@@ -20,6 +20,17 @@ export default function Admin() {
   const [chartContext, setChartContext] = useState<{ type: 'collab' | 'project', id: string, name: string } | null>(null);
   const [activeStatModal, setActiveStatModal] = useState<'projects' | 'users' | 'progress' | 'urgent' | null>(null);
   const [timeRange, setTimeRange] = useState<'3 Dias' | 'Semana' | '15 Dias' | 'Mês' | 'Trimestre' | 'Semestre' | 'Ano'>('Semana');
+  const [reportConfig, setReportConfig] = useState({
+    type: 'Colaboradores' as 'Geral' | 'Projetos' | 'Colaboradores',
+    collabId: 'all',
+    period: 'Sempre' as 'Sempre' | '7 Dias' | '15 Dias' | '30 Dias' | '90 Dias',
+    unit: 'Todas'
+  });
+
+  const availableUnits = useMemo(() => {
+    const units = Array.from(new Set(tasks.map(t => t.measurementType || 'UN')));
+    return ['Todas', ...units];
+  }, [tasks]);
 
   const allAssignees = useMemo(() => {
     return users.map(u => ({ id: u.id, name: u.name, type: 'user' }));
@@ -198,155 +209,366 @@ export default function Admin() {
 
   const urgentTasks = tasks.filter(t => t.priority === 'Urgente' && t.status !== 'Concluída').length;
 
-  const generatePDF = (title, data, kpis = []) => {
+  const generatePDF = (title, data, kpis = [], timelineData = [], detailedActivities = []) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     
     // --- Luxury Header ---
-    doc.setFillColor(10, 12, 16); // Deep dark background
-    doc.rect(0, 0, pageWidth, 28, 'F');
-    // Accent line below it
-    doc.setFillColor(255, 97, 48); // Orange Accent
-    doc.rect(0, 28, pageWidth, 1.5, 'F');
+    doc.setFillColor(15, 17, 23); 
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    doc.setFillColor(255, 97, 48); 
+    doc.rect(0, 30, pageWidth, 1.5, 'F');
     
-    // Title / Brand
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('G A L I Z A', 15, 19);
+    doc.text('G A L I Z A', 15, 20);
     
-    // Also fixing standard accents like "Gestão", "Página", "Relatório" that had typos
-    doc.setTextColor(180, 180, 180);
-    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('GESTÃO DE PROJETOS', 64, 18);
+    doc.text('PAINEL DE PERFORMANCE OPERACIONAL', 15, 26);
     
     doc.setTextColor(255, 255, 255);
-    doc.text(`DATA: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 15, 18, { align: 'right' });
+    doc.setFontSize(9);
+    doc.text(`DATA DE EMISSÃO: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`, pageWidth - 15, 19, { align: 'right' });
     
     // --- Report Subtitle ---
-    doc.setTextColor(10, 12, 16);
+    doc.setTextColor(15, 17, 23);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(title.toUpperCase(), 15, 42);
+    doc.text(title.toUpperCase(), 15, 45);
     
-    doc.setDrawColor(200, 200, 200);
+    doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.5);
-    doc.line(15, 45, pageWidth - 15, 45);
+    doc.line(15, 48, pageWidth - 15, 48);
     
-    // --- KPI Section ---
-    let tableStartY = 55;
+    // --- KPI Cards ---
+    let currentY = 58;
     if (kpis.length > 0) {
       let xPos = 15;
       const kpiWidth = (pageWidth - 45) / 4;
       
-      kpis.forEach(kpi => {
-        // Subtle Card
-        doc.setFillColor(250, 251, 252);
-        doc.roundedRect(xPos, 52, kpiWidth, 22, 2, 2, 'F');
-        doc.setDrawColor(230, 230, 230);
-        doc.roundedRect(xPos, 52, kpiWidth, 22, 2, 2, 'S');
+      kpis.forEach((kpi, idx) => {
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(xPos, currentY, kpiWidth, 22, 2, 2, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(xPos, currentY, kpiWidth, 22, 2, 2, 'S');
         
-        // Content
-        doc.setTextColor(100, 110, 120);
+        const colors = [[255, 97, 48], [52, 211, 153], [96, 165, 250], [251, 191, 36]];
+        const color = colors[idx % colors.length];
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.rect(xPos, currentY, kpiWidth, 1.2, 'F');
+        
+        doc.setTextColor(100, 116, 139);
         doc.setFontSize(7);
         doc.setFont('helvetica', 'bold');
-        doc.text(kpi.label.toUpperCase(), xPos + 4, 59);
+        doc.text(kpi.label.toUpperCase(), xPos + 4, currentY + 7);
         
-        doc.setTextColor(255, 97, 48); // Accent Orange
+        doc.setTextColor(30, 41, 59);
         doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(String(kpi.value), xPos + 4, 69);
+        doc.text(String(kpi.value), xPos + 4, currentY + 16);
         
         xPos += kpiWidth + 5;
       });
-      tableStartY = 85;
+      currentY += 32;
     }
 
-    // --- Data Table ---
-    autoTable(doc, {
-      startY: tableStartY,
-      head: [Object.keys(data[0])],
-      body: data.map(obj => Object.values(obj)),
-      styles: { 
-        fontSize: 9, 
-        cellPadding: 4, 
-        font: 'helvetica',
-        lineColor: [230, 230, 230],
-        lineWidth: 0.1
-      },
-      headStyles: { 
-        fillColor: [10, 12, 16], // Dark Luxury Header
-        textColor: 255, 
-        fontStyle: 'bold',
-        halign: 'left'
-      },
-      bodyStyles: { textColor: [40, 40, 40] },
-      alternateRowStyles: { fillColor: [248, 249, 251] },
-      margin: { left: 15, right: 15 }
-    });
+    // --- Timeline Chart (Matching the UI Screenshot) ---
+    if (timelineData.length > 0) {
+      doc.setFontSize(10);
+      doc.setTextColor(15, 17, 23);
+      doc.text("GRÁFICO DE DESEMPENHO DIÁRIO", 15, currentY);
+      
+      const chartX = 15;
+      const chartY = currentY + 5;
+      const chartW = pageWidth - 30;
+      const chartH = 35;
+      
+      doc.setFillColor(252, 253, 254);
+      doc.rect(chartX, chartY, chartW, chartH, 'F');
+      
+      const maxVal = timelineData.length > 0 ? Math.max(...timelineData.map(d => d.value), 1) : 1;
+      
+      // Draw Grid and Y-Axis Labels
+      doc.setDrawColor(240, 240, 245);
+      doc.setLineWidth(0.1);
+      doc.setFontSize(5);
+      doc.setTextColor(150);
+      
+      for(let g = 0; g <= 4; g++) {
+        const gy = chartY + (g * (chartH / 4));
+        doc.line(chartX, gy, chartX + chartW, gy);
+        
+        // Y-axis label (Quantidades)
+        const yVal = Math.round(maxVal - (g * (maxVal / 4)));
+        doc.text(String(yVal), chartX - 2, gy + 1, { align: 'right' });
+      }
+
+      const denominator = timelineData.length > 1 ? timelineData.length - 1 : 1;
+      
+      const points = timelineData.map((d, i) => ({
+        x: chartX + (i * (chartW / denominator)),
+        y: chartY + chartH - ((d.value / maxVal) * chartH)
+      }));
+
+      // Draw Area (Polygon)
+      if (points.length > 1) {
+        doc.setFillColor(255, 245, 240); 
+        for(let i = 0; i < points.length - 1; i++) {
+           doc.triangle(
+             points[i].x, chartY + chartH,
+             points[i+1].x, chartY + chartH,
+             points[i].x, points[i].y,
+             'F'
+           );
+           doc.triangle(
+             points[i+1].x, chartY + chartH,
+             points[i].x, points[i].y,
+             points[i+1].x, points[i+1].y,
+             'F'
+           );
+        }
+
+        // Draw Line
+        doc.setDrawColor(255, 97, 48);
+        doc.setLineWidth(0.8);
+        for(let i = 0; i < points.length - 1; i++) {
+          doc.line(points[i].x, points[i].y, points[i+1].x, points[i+1].y);
+        }
+
+        // Draw Dots (markers)
+        doc.setFillColor(255, 97, 48);
+        points.forEach((p, idx) => {
+           if (timelineData.length <= 15 || idx % Math.ceil(timelineData.length / 15) === 0) {
+             doc.circle(p.x, p.y, 0.8, 'F');
+             doc.setDrawColor(255, 255, 255);
+             doc.setLineWidth(0.3);
+             doc.circle(p.x, p.y, 0.8, 'S');
+           }
+        });
+
+      } else if (points.length === 1) {
+        doc.setFillColor(255, 97, 48);
+        doc.circle(points[0].x, points[0].y, 1.5, 'F');
+      }
+
+      // X-axis labels
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      const step = Math.max(Math.ceil(timelineData.length / 10), 1);
+      timelineData.forEach((d, i) => {
+        if (i % step === 0 || i === timelineData.length - 1) {
+          doc.text(d.label, points[i].x, chartY + chartH + 4, { align: 'center' });
+        }
+      });
+      
+      currentY += 55;
+    }
+
+    // --- Detailed Activity List by Unit (MT/UN) ---
+    if (detailedActivities && detailedActivities.length > 0) {
+      doc.setFontSize(10);
+      doc.setTextColor(15, 17, 23);
+      doc.text("DETALHAMENTO DE ATIVIDADES REALIZADAS", 15, currentY);
+      currentY += 5;
+
+      const units = Array.from(new Set(detailedActivities.map(a => a.unit || 'UN')));
+      
+      units.forEach(u => {
+        const unitActivities = detailedActivities.filter(a => (a.unit || 'UN') === u);
+        
+        if (currentY > 260) { doc.addPage(); currentY = 20; }
+        
+        doc.setFillColor(240, 245, 250);
+        doc.rect(15, currentY, pageWidth - 30, 6, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(50, 80, 120);
+        doc.text(`UNIDADE DE MEDIDA: ${u}`, 18, currentY + 4.5);
+        currentY += 8;
+
+        unitActivities.forEach(a => {
+          if (currentY > 270) { doc.addPage(); currentY = 20; }
+          
+          doc.setDrawColor(240, 240, 240);
+          doc.line(15, currentY + 8, pageWidth - 15, currentY + 8);
+          
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 17, 23);
+          doc.text(a.title || 'Sem Título', 18, currentY + 5);
+          
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(120, 120, 120);
+          doc.text(`${a.date || '-'} ${a.time || ''}`, 18, currentY + 9);
+          
+          doc.setTextColor(255, 97, 48);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`+${a.amount || 0} ${u}`, pageWidth - 18, currentY + 6, { align: 'right' });
+          
+          currentY += 13;
+        });
+        currentY += 5;
+      });
+    } else if (data && data.length > 0) {
+      // Standard Table if no detailed activities
+      autoTable(doc, {
+        startY: currentY,
+        head: [Object.keys(data[0])],
+        body: data.map(obj => Object.values(obj)),
+        styles: { fontSize: 8.5, cellPadding: 4 },
+        headStyles: { fillColor: [15, 17, 23], textColor: 255 },
+        margin: { left: 15, right: 15 }
+      });
+    }
     
-    // --- Footer ---
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.setTextColor(120);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        doc.text('Relatório Gerado Automáticamente - Galiza', 15, doc.internal.pageSize.height - 10);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount} | Galiza Project Manager`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
 
     const filename = `${title.replace(/\s+/g, '_').toLowerCase()}_${new Date().getTime()}.pdf`;
     return { doc, filename };
   };
 
-  const generateReport = (type) => {
+  const generateReport = () => {
+    const { type, collabId, period, unit } = reportConfig;
     let result = null;
+
+    const isWithinPeriod = (timestamp: any) => {
+      if (period === 'Sempre') return true;
+      const now = new Date().getTime();
+      const date = new Date(timestamp).getTime();
+      const diffDays = (now - date) / (1000 * 3600 * 24);
+      
+      const limit = period === '7 Dias' ? 7 : period === '15 Dias' ? 15 : period === '30 Dias' ? 30 : 90;
+      return diffDays <= limit;
+    };
+
     switch(type) {
       case 'Geral':
-        result = generatePDF('Relatório de Status Geral', 
+        const filteredTasks = tasks.filter(t => 
+          isWithinPeriod(t.created_at || t.dueDate) && 
+          (unit === 'Todas' || t.measurementType === unit)
+        );
+        const filteredCompleted = filteredTasks.filter(t => t.status === 'Concluída').length;
+        const filteredUrgent = filteredTasks.filter(t => t.priority === 'Urgente' && t.status !== 'Concluída').length;
+        
+        result = generatePDF('Relatório Geral de Operações', 
           [
-            { Indicador: 'Total de Projetos ativos no sistema', Valor: stats.totalProjects },
-            { Indicador: 'Usuários cadastrados na plataforma', Valor: users.length },
-            { Indicador: 'Tarefas concluídas com sucesso', Valor: stats.completedTasks },
-            { Indicador: 'Tarefas pendentes de execução', Valor: stats.pendingTasks },
-            { Indicador: 'Percentual de conclusão global', Valor: `${overallProgress}%` }
+            { Indicador: 'Período Selecionado', Valor: period },
+            { Indicador: 'Unidade Filtrada', Valor: unit },
+            { Indicador: 'Total de Atividades', Valor: filteredTasks.length },
+            { Indicador: 'Atividades Finalizadas', Valor: filteredCompleted },
+            { Indicador: 'Projetos Ativos', Valor: projects.length }
           ],
           [
-            { label: 'Projetos', value: stats.totalProjects },
-            { label: 'Usuários', value: users.length },
-            { label: 'Conc.', value: `${overallProgress}%` },
-            { label: 'Urgentes', value: urgentTasks }
+            { label: 'ATIVIDADES', value: filteredTasks.length },
+            { label: 'CONCLUÍDAS', value: filteredCompleted },
+            { label: 'URGENTES', value: filteredUrgent },
+            { label: 'PROJETOS', value: projects.length }
           ]
         );
         break;
+
       case 'Projetos':
         const projData = projectStatus.map(p => ({
           'Projeto': p.name,
           'Progresso': `${p.progress || 0}%`,
           'Status': p.progress === 100 ? 'Concluído' : p.isLate ? 'Atrasado' : 'Ativo',
-          'Tarefas': `${p.completed}/${p.total}`,
-          'Prazo Restante': p.daysLeft !== null ? `${p.daysLeft} dias` : '-'
+          'Entregas': `${p.completed}/${p.total}`,
+          'Prazo': p.daysLeft !== null ? (p.isLate ? `Atrasado ${p.daysLeft}d` : `${p.daysLeft} dias`) : '-'
         }));
-        result = generatePDF('Relatório de Progresso de Projetos', projData, [
-          { label: 'Total Projetos', value: projects.length },
-          { label: 'Concluídos', value: projects.filter(p => p.progress === 100).length },
-          { label: 'Atrasados', value: projectStatus.filter(p => p.isLate).length }
+        result = generatePDF('Status de Progresso dos Projetos', projData, [
+          { label: 'TOTAL', value: projects.length },
+          { label: 'CONCLUÍDOS', value: projects.filter(p => p.progress === 100).length },
+          { label: 'EM ATRASO', value: projectStatus.filter(p => p.isLate).length }
         ]);
         break;
+
       case 'Colaboradores':
-        const collabData = tasksByCollaborator.map(c => ({
-          'Colaborador': c.name,
-          'Total Tarefas': c.total,
-          'Concluídas': c.completed,
-          'Pendentes': c.todo + c.inProgress,
-          'Desempenho': `${c.progress}%`
-        }));
-        result = generatePDF('Relatório de Gestão de Equipe', collabData, [
-          { label: 'Total Equipe', value: users.length },
-          { label: 'Melhor Desempenho', value: tasksByCollaborator.length > 0 ? `${Math.max(...tasksByCollaborator.map(c => c.progress))}%` : '0%' }
-        ]);
+        let targetCollabs = tasksByCollaborator;
+        if (collabId !== 'all') {
+          targetCollabs = tasksByCollaborator.filter(c => String(c.id) === String(collabId));
+        }
+
+        const today = new Date();
+        const daysToChart = period === 'Sempre' ? 30 : (period === '7 Dias' ? 7 : period === '15 Dias' ? 15 : period === '30 Dias' ? 30 : 90);
+        const timelineData = [];
+
+        for (let i = daysToChart - 1; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          
+          const dailyExecs = targetCollabs.flatMap(c => {
+             const collabTasks = tasks.filter(t => String(t.assigneeId) === String(c.id));
+             return collabTasks.flatMap(t => (t.executions || []))
+               .filter(e => String(e.colaboradorId) === String(c.id) && (e.data === dateStr || (e.timestamp && e.timestamp.split('T')[0] === dateStr)));
+          });
+          
+          const [yr, mo, dy] = dateStr.split('-');
+          timelineData.push({ label: `${dy}/${mo}`, value: dailyExecs.length });
+        }
+
+        const collabReportData = targetCollabs.map(c => {
+          const collabTasks = tasks.filter(t => 
+            String(t.assigneeId) === String(c.id) && 
+            (unit === 'Todas' || t.measurementType === unit)
+          );
+          const collabExecutions = collabTasks.flatMap(t => (t.executions || []))
+            .filter(e => String(e.colaboradorId) === String(c.id) && isWithinPeriod(e.timestamp || e.data));
+          
+          const periodProducedSum = collabExecutions.reduce((sum, e) => sum + (Number(e.quantidade) || 0), 0);
+          const activityCount = collabExecutions.length;
+          
+          return {
+            'Colaborador': c.name,
+            'Ativ. Vinculadas': collabTasks.length,
+            'Ativ. Realizadas (Qtd)': activityCount,
+            'Produção (Soma)': `${periodProducedSum} ${unit === 'Todas' ? '' : unit}`,
+            'Desempenho': `${c.progress}%`
+          };
+        });
+
+        const detailedActivities = targetCollabs.flatMap(c => {
+           const collabTasks = tasks.filter(t => String(t.assigneeId) === String(c.id));
+           return collabTasks.flatMap(t => (t.executions || []).map(e => ({
+              ...e,
+              title: t.title,
+              unit: t.measurementType || 'UN'
+           })))
+           .filter(e => String(e.colaboradorId) === String(c.id) && isWithinPeriod(e.timestamp || e.data))
+           .map(e => {
+              const dt = new Date(e.timestamp || e.data);
+              return {
+                title: e.title,
+                date: dt.toLocaleDateString('pt-BR'),
+                time: dt.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                amount: e.quantidade || 0,
+                unit: e.unit,
+                timestamp: dt.getTime()
+              };
+           })
+           .sort((a,b) => b.timestamp - a.timestamp);
+        });
+
+        result = generatePDF(
+          collabId === 'all' ? 'Desempenho Geral da Equipe' : `Desempenho Individual: ${targetCollabs[0]?.name}`,
+          collabReportData,
+          [
+            { label: 'INTEGRANTES', value: targetCollabs.length },
+            { label: 'ATIVIDADES', value: collabReportData.reduce((sum, r) => sum + Number(r['Ativ. Realizadas (Qtd)']), 0) },
+            { label: 'PROD. SOMA', value: unit === 'Todas' ? 'Múltiplas' : collabReportData.reduce((sum, r) => sum + Number(r['Produção (Soma)'].split(' ')[0]), 0) }
+          ],
+          timelineData,
+          detailedActivities
+        );
         break;
     }
     
@@ -551,40 +773,84 @@ export default function Admin() {
 
       {showReportModal && createPortal(
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowReportModal(false)}>
-          <div className="modal-content report-modal">
+          <div className="modal-content" style={{ width: '450px' }}>
             <div className="modal-header">
-              <h3>Gerar Relatório</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileText size={20} color="var(--accent)" />
+                <h3 style={{ margin: 0 }}>Configurar Relatório</h3>
+              </div>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body">
-              <div className="report-options">
-                <button className="report-option" onClick={() => generateReport('Geral')}>
-                  <FileText size={24} />
-                  <div className="option-content">
-                    <span className="option-title">Relatório Geral</span>
-                    <span className="option-desc">Resumo completo do sistema</span>
-                  </div>
-                  <Download size={18} />
-                </button>
-                <button className="report-option" onClick={() => generateReport('Projetos')}>
-                  <FolderKanban size={24} />
-                  <div className="option-content">
-                    <span className="option-title">Relatório de Projetos</span>
-                    <span className="option-desc">Progresso e prazos</span>
-                  </div>
-                  <Download size={18} />
-                </button>
-                <button className="report-option" onClick={() => generateReport('Colaboradores')}>
-                  <Users size={24} />
-                  <div className="option-content">
-                    <span className="option-title">Relatório de Colaboradores</span>
-                    <span className="option-desc">Desempenho individual</span>
-                  </div>
-                  <Download size={18} />
-                </button>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              <div className="form-group">
+                <label>Tipo de Relatório</label>
+                <select 
+                  value={reportConfig.type} 
+                  onChange={e => setReportConfig({...reportConfig, type: e.target.value as any})}
+                >
+                  <option value="Colaboradores">Desempenho da Equipe</option>
+                  <option value="Projetos">Status de Projetos</option>
+                  <option value="Geral">Resumo Geral Operacional</option>
+                </select>
               </div>
+
+              {reportConfig.type === 'Colaboradores' && (
+                <div className="form-group animate-fadeIn">
+                  <label>Colaborador</label>
+                  <select 
+                    value={reportConfig.collabId} 
+                    onChange={e => setReportConfig({...reportConfig, collabId: e.target.value})}
+                  >
+                    <option value="all">Todos os Colaboradores</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Unidade de Medida (MT)</label>
+                <select 
+                  value={reportConfig.unit} 
+                  onChange={e => setReportConfig({...reportConfig, unit: e.target.value})}
+                >
+                  {availableUnits.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Período de Análise</label>
+                <select 
+                  value={reportConfig.period} 
+                  onChange={e => setReportConfig({...reportConfig, period: e.target.value as any})}
+                >
+                  <option value="Sempre">Todo o Histórico</option>
+                  <option value="7 Dias">Últimos 7 Dias</option>
+                  <option value="15 Dias">Últimos 15 Dias</option>
+                  <option value="30 Dias">Último Mês</option>
+                  <option value="90 Dias">Último Trimestre</option>
+                </select>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)', lineHeight: '1.5' }}>
+                  <TrendingUp size={12} style={{ marginRight: '6px', color: 'var(--success)' }} />
+                  O relatório incluirá tabelas de dados e indicadores de performance baseados nos filtros selecionados acima.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+               <button className="btn-secondary" onClick={() => setShowReportModal(false)}>Cancelar</button>
+               <button className="btn-primary" onClick={generateReport} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                 <BarChart3 size={18} />
+                 Gerar Visualização
+               </button>
             </div>
           </div>
         </div>,
