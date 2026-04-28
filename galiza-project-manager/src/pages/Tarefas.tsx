@@ -54,6 +54,10 @@ export default function Tarefas() {
 
   const handleDeleteHistoryEntry = async (historyEntry: any) => {
     if (!window.confirm('Excluir este registro e reverter a atividade para o estado anterior?')) return;
+    
+    setDisintegratingHistoryId(historyEntry.id);
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     try {
       // Restaura a tarefa para o estado anterior (oldValue)
       if (historyEntry.oldValue && historyModalTask) {
@@ -80,6 +84,8 @@ export default function Tarefas() {
       setTaskHistory(changes || []);
     } catch (error: any) {
       console.error('Erro ao excluir histórico:', error);
+    } finally {
+      setDisintegratingHistoryId(null);
     }
   };
   const [executionForm, setExecutionForm] = useState({
@@ -107,6 +113,8 @@ export default function Tarefas() {
   const [taskForm, setTaskForm] = useState(emptyTask);
   const [isLinked, setIsLinked] = useState(false);
   const [expandedDoneIds, setExpandedDoneIds] = useState<Set<number>>(new Set());
+  const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
+  const [disintegratingHistoryId, setDisintegratingHistoryId] = useState<number | null>(null);
 
   const toggleDoneExpand = (id: number) => {
     setExpandedDoneIds(prev => {
@@ -269,10 +277,14 @@ setExecutionModalTask(null);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+      setDisintegratingTaskId(id);
+      await new Promise(resolve => setTimeout(resolve, 600));
       try {
         await deleteTask(id);
         } catch (error: any) {
         console.error('Erro ao excluir tarefa:', error);
+      } finally {
+        setDisintegratingTaskId(null);
       }
     }
   };
@@ -427,7 +439,12 @@ setExecutionModalTask(null);
                 {openMenuId === task.id && (
                   <div className="projeto-context-menu">
                     <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
-                    <button className="menu-danger" onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}><Trash2 size={14} /> Excluir</button>
+                    <button 
+                      className={`menu-danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                      onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}
+                    >
+                      <Trash2 size={14} /> Excluir
+                    </button>
                   </div>
                 )}
               </div>
@@ -478,7 +495,15 @@ setExecutionModalTask(null);
                   )}
                   <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
                   {!isDone && <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>}
-                  {!isDone && <button className="rtc-icon-btn danger" onClick={() => handleDelete(task.id)} title="Excluir"><Trash2 size={16}/></button>}
+                  {!isDone && (
+                    <button 
+                      className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                      onClick={() => handleDelete(task.id)} 
+                      title="Excluir"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -625,6 +650,7 @@ setExecutionModalTask(null);
                               {isAdmin && h.action === 'update' && h.oldValue && (
                                 <button
                                   title="Excluir e reverter para estado anterior"
+                                  className={disintegratingHistoryId === h.id ? 'btn-disintegrate' : ''}
                                   onClick={() => handleDeleteHistoryEntry(h)}
                                   style={{
                                     background: 'rgba(239,68,68,0.1)',
@@ -640,7 +666,7 @@ setExecutionModalTask(null);
                                     lineHeight: 1
                                   }}
                                 >
-                                  <Trash2 size={12}/> Reverter
+                                  <Trash2 size={12}/>
                                 </button>
                               )}
                             </div>
