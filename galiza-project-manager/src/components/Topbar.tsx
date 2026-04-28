@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, User, Moon, Sun, Menu, X, LogOut, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Bell, User, Moon, Sun, Menu, X, LogOut, Clock, AlertTriangle, CheckCircle2, Check } from 'lucide-react';
 import { useApp } from '../App';
 import './Topbar.css';
 
@@ -23,7 +23,32 @@ export default function Topbar() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<number[]>([]);
   const { isAdmin, currentUser, tasks, projects, users, logout } = useApp();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('galiza_read_notifs');
+    if (saved) {
+      try {
+        setReadNotifIds(JSON.parse(saved));
+      } catch (e) {
+        setReadNotifIds([]);
+      }
+    }
+  }, []);
+
+  const handleMarkAsRead = (id: number) => {
+    const newRead = [...readNotifIds, id];
+    setReadNotifIds(newRead);
+    localStorage.setItem('galiza_read_notifs', JSON.stringify(newRead));
+  };
+
+  const handleMarkAllAsRead = (notifs: Notification[]) => {
+    const ids = notifs.map(n => n.id);
+    const newRead = Array.from(new Set([...readNotifIds, ...ids]));
+    setReadNotifIds(newRead);
+    localStorage.setItem('galiza_read_notifs', JSON.stringify(newRead));
+  };
 
   const handleLogout = () => {
     logout();
@@ -128,8 +153,11 @@ export default function Topbar() {
       }
     }
 
-    return notifs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 10);
-  }, [tasks, currentUser, isAdmin]);
+    return notifs
+      .filter(n => !readNotifIds.includes(n.id))
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 10);
+  }, [tasks, currentUser, isAdmin, readNotifIds]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -193,7 +221,17 @@ export default function Topbar() {
               <div className="notification-dropdown">
                 <div className="notification-header">
                   <h4>Notificações</h4>
-                  <span className="notification-count">{notifications.length} itens</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="notification-count">{notifications.length} itens</span>
+                    {notifications.length > 0 && (
+                      <button 
+                        onClick={() => handleMarkAllAsRead(notifications)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        Limpar Tudo
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="notification-list">
                   {notifications.length === 0 ? (
@@ -203,7 +241,12 @@ export default function Topbar() {
                     </div>
                   ) : (
                     notifications.map(notif => (
-                      <div key={notif.id} className="notification-item">
+                      <div 
+                        key={notif.id} 
+                        className="notification-item"
+                        onClick={() => handleMarkAsRead(notif.id)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div 
                           className="notification-icon"
                           style={{ color: getNotificationColor(notif.type) }}
@@ -211,7 +254,16 @@ export default function Topbar() {
                           {getNotificationIcon(notif.type)}
                         </div>
                         <div className="notification-content">
-                          <span className="notification-title">{notif.title}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span className="notification-title">{notif.title}</span>
+                            <button 
+                              className="notif-check-btn" 
+                              onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notif.id); }}
+                              title="Marcar como lido"
+                            >
+                              <Check size={14} />
+                            </button>
+                          </div>
                           <span className="notification-message">{notif.message}</span>
                           <span className="notification-time">
                             {notif.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

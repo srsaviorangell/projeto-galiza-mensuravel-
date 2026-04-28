@@ -19,6 +19,7 @@ export default function ProjetoDetalhes() {
   const [taskHistory, setTaskHistory] = useState<any[]>([]);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
 
   const openHistoryModal = async (task: any) => {
     setHistoryModalTask(task);
@@ -179,6 +180,18 @@ export default function ProjetoDetalhes() {
       setEditingTask(null);
     } catch (error: any) {
       console.error('Erro ao salvar atividade:', error);
+    }
+  };
+
+  const handleDeleteTask = async (id: number) => {
+    setDisintegratingTaskId(id);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      await deleteTask(id);
+    } catch (error: any) {
+      console.error('Erro ao excluir tarefa:', error);
+    } finally {
+      setDisintegratingTaskId(null);
     }
   };
 
@@ -459,7 +472,13 @@ if(!linkForm.url || !linkForm.title) {
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)}><History size={16}/></button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>
-                    <button className="rtc-icon-btn danger" onClick={() => deleteTask(task.id)}><Trash2 size={16}/></button>
+                    <button 
+                      className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                      onClick={() => handleDeleteTask(task.id)}
+                      title="Excluir"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
                   </div>
                 </div>
               )})}
@@ -524,7 +543,13 @@ if(!linkForm.url || !linkForm.title) {
                        Ver Histórico
                     </button>
                     <button className="rtc-icon-btn" onClick={() => openEditTask(task)}><Edit2 size={16}/></button>
-                    <button className="rtc-icon-btn danger" onClick={() => deleteTask(task.id)}><Trash2 size={16}/></button>
+                    <button 
+                      className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                      onClick={() => handleDeleteTask(task.id)}
+                      title="Excluir"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
                   </div>
                 </div>
               );})}

@@ -315,17 +315,23 @@ function AppContent() {
   const updateTask = useCallback(async (id, updates) => {
     const dbUpdates: Record<string, any> = {};
     
-    if (updates.title !== undefined) dbUpdates.title = updates.title;
-    if (updates.name !== undefined) dbUpdates.title = updates.name;
+    // Prioritize camelCase (UI state) over snake_case (legacy/DB state)
+    const title = updates.title ?? updates.name;
+    if (title !== undefined) dbUpdates.title = title;
+    
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
-    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
-    if (updates.project_id !== undefined) dbUpdates.project_id = updates.project_id;
-    if (updates.assigneeId !== undefined) dbUpdates.assignee_id = updates.assigneeId;
-    if (updates.assignee_id !== undefined) dbUpdates.assignee_id = updates.assignee_id;
-    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
-    if (updates.due_date !== undefined) dbUpdates.due_date = updates.due_date;
+    
+    const projectId = updates.projectId ?? updates.project_id;
+    if (projectId !== undefined) dbUpdates.project_id = projectId;
+    
+    const assigneeId = updates.assigneeId ?? updates.assignee_id;
+    if (assigneeId !== undefined) dbUpdates.assignee_id = assigneeId;
+    
+    const dueDate = updates.dueDate ?? updates.due_date;
+    if (dueDate !== undefined) dbUpdates.due_date = dueDate;
+    
     if (updates.measurementTarget !== undefined) dbUpdates.measurement_target = updates.measurementTarget;
     if (updates.measurementCurrent !== undefined) dbUpdates.measurement_current = updates.measurementCurrent;
     if (updates.measurementType !== undefined) dbUpdates.measurement_type = updates.measurementType;

@@ -171,13 +171,13 @@
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
-  width: 360px;
-  background: var(--bg-surface);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
-  border: 1px solid var(--border);
+  width: 380px;
+  background: rgba(15, 20, 30, 0.98); /* Much more solid for better readability */
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
   z-index: 200;
   animation: dropdownReveal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
@@ -227,9 +227,9 @@
 .notification-item {
   display: flex;
   gap: 12px;
-  padding: 0.9rem 1.25rem;
+  padding: 1.1rem 1.25rem;
   transition: var(--transition-fast);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .notification-item:last-child {
@@ -237,7 +237,7 @@
 }
 
 .notification-item:hover {
-  background: var(--primary-light);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .notification-icon {
@@ -259,23 +259,49 @@
 }
 
 .notification-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFFFFF; /* Force white for maximum contrast */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 .notification-message {
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.8); /* Brighter message */
+  line-height: 1.4;
+  margin: 2px 0;
 }
 
 .notification-time {
   font-size: 11px;
-  color: var(--text-tertiary);
-  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5); /* Brighter than tertiary for better contrast */
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.notif-check-btn {
+  background: rgba(52, 211, 153, 0.2);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34D399;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 1;
+  box-shadow: 0 2px 10px rgba(52, 211, 153, 0.2);
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.notif-check-btn:hover {
+  background: #10B981;
+  border-color: #34D399;
+  color: white;
+  transform: scale(1.1) translateY(-1px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);
 }
 
 /* ─── User Dropdown ─── */

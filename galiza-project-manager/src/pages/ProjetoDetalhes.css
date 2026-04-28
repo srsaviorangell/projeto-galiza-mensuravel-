@@ -760,3 +760,40 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Disintegration Animation ─── */
+.btn-disintegrate {
+  animation: disintegrate 0.6s forwards !important;
+  pointer-events: none;
+}
+
+@keyframes disintegrate {
+  0% {
+    transform: scale(1) rotate(0);
+    filter: blur(0);
+    opacity: 1;
+  }
+  20% {
+    transform: scale(1.1) rotate(5deg) translate(2px, -2px);
+    filter: blur(1px);
+  }
+  40% {
+    transform: scale(0.9) rotate(-5deg) translate(-2px, 2px);
+    filter: blur(2px);
+  }
+  60% {
+    transform: scale(1.2) rotate(10deg) translate(4px, -4px);
+    filter: blur(4px);
+    opacity: 0.8;
+  }
+  80% {
+    transform: scale(0.5) rotate(-20deg) translate(-10px, 10px);
+    filter: blur(8px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0) rotate(45deg) translate(20px, -20px);
+    filter: blur(12px);
+    opacity: 0;
+  }
+}

@@ -491,15 +491,13 @@ setExecutionModalTask(null);
                   )}
                   <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
                   {!isDone && <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>}
-                  {!isDone && (
-                    <button 
-                      className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
-                      onClick={() => handleDelete(task.id)} 
-                      title="Excluir"
-                    >
-                      <Trash2 size={16}/>
-                    </button>
-                  )}
+                  <button 
+                    className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                    onClick={() => handleDelete(task.id)} 
+                    title="Excluir"
+                  >
+                    <Trash2 size={16}/>
+                  </button>
                 </div>
               </div>
             </div>
