@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, EyeOff, AlertCircle, Mail, Lock, Crown } from 'lucide-react';
 import './Login.css';
 import logoIcon from '../assets/logos/logo-icon.png';
+import { signInWithGoogle } from '../lib/googleAuth';
 
 const SUPABASE_URL = 'https://dgqmnzkauhpkpzhrnwlb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRncW1uemthdWhwa3B6aHJud2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjA0MTUsImV4cCI6MjA5MTczNjQxNX0.70a3IAwNlHJOnpKrzfsafDUNjtNfnPyScjKBkiQrpJE';
@@ -18,6 +19,17 @@ export default function Login() {
   const [isFirstAccessMode, setIsFirstAccessMode] = useState(false);
   
   const navigate = useNavigate();
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      setError(result.error);
+      setIsLoading(false);
+    }
+    // O redirecionamento é feito automaticamente pelo Supabase
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser');
@@ -218,6 +230,20 @@ export default function Login() {
                 disabled={isLoading}
               >
                 {isLoading ? 'Entrando...' : 'Entrar'}
+              </button>
+
+              <div className="login-divider">
+                <span>OU</span>
+              </div>
+
+              <button
+                type="button"
+                className="google-btn"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon" width="18" />
+                Entrar com Google
               </button>
             </form>
 

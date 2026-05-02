@@ -45,11 +45,13 @@ export function AppProvider({ children }) {
         }
         setIsFirstAccess(userData.first_access === true);
         setIsAdmin(isSudoEmail || userData.role?.toLowerCase() === 'admin' || userData.role?.toLowerCase() === 'sudo');
-        setCurrentUser({ ...sessionUser, ...userData, role: isSudoEmail ? 'sudo' : userData.role });
+        const fullUser = { ...sessionUser, ...userData, role: isSudoEmail ? 'sudo' : userData.role };
+        setCurrentUser(fullUser);
+        localStorage.setItem('currentUser', JSON.stringify(fullUser));
       } else {
         // Nenhum registro encontrado — cria novo
         const newRole = isSudoEmail ? 'sudo' : 'user';
-        await supabase.from('users').insert([{
+        const newUser = {
           id: sessionUser.id,
           email: sessionUser.email,
           name: sessionUser.email.split('@')[0],
@@ -57,10 +59,13 @@ export function AppProvider({ children }) {
           first_access: !isSudoEmail,
           status: 'Ativo',
           created_at: new Date().toISOString()
-        }]);
+        };
+        await supabase.from('users').insert([newUser]);
         setIsFirstAccess(!isSudoEmail);
         setIsAdmin(isSudoEmail);
-        setCurrentUser({ ...sessionUser, role: newRole, name: sessionUser.email.split('@')[0] });
+        const fullUser = { ...sessionUser, ...newUser };
+        setCurrentUser(fullUser);
+        localStorage.setItem('currentUser', JSON.stringify(fullUser));
       }
     } catch (e) {
       console.error('Erro ao carregar perfil:', e);
@@ -154,9 +159,13 @@ initialize();
       setSession(session);
 
       if (!session?.user) {
-        setCurrentUser(null);
-        setIsAdmin(false);
-        setIsFirstAccess(false);
+        // Se não há sessão do Supabase, verificamos se existe um login manual no localStorage
+        const storedUser = localStorage.getItem('currentUser');
+        if (!storedUser) {
+          setCurrentUser(null);
+          setIsAdmin(false);
+          setIsFirstAccess(false);
+        }
         setIsLoading(false);
         return;
       }
