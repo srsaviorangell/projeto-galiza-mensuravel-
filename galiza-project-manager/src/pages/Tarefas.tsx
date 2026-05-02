@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import { 
   Plus, Search, Filter, MoreVertical, Edit3, Trash2, 
   CheckCircle2, Clock, AlertCircle, Link2, 
@@ -22,7 +22,7 @@ export default function Tarefas() {
     if (filterProject === 'avulsa') {
       base = base.filter((t: any) => !t.projectId);
     } else if (filterProject !== 'all' && filterProject !== '') {
-      base = base.filter((t: any) => t.projectId === Number(filterProject));
+      base = base.filter((t: any) => String(t.projectId) === String(filterProject));
     }
     return base;
   }, [tasks, userTasks, filterProject, isAdmin]);
@@ -48,39 +48,69 @@ export default function Tarefas() {
 
   const openHistoryModal = async (task: any) => {
     setHistoryModalTask(task);
-    const changes = await getHistory('task', task.id);
-    setTaskHistory(changes || []);
+    console.log('Buscando histórico para task:', task.id);
+    const [taskHistoryData, execHistoryData] = await Promise.all([
+      getHistory('task', task.id),
+      getHistory('execution', task.id)
+    ]);
+    console.log('Histórico task:', taskHistoryData);
+    console.log('Histórico execution:', execHistoryData);
+    const combined = [...(taskHistoryData || []), ...(execHistoryData || [])];
+    combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setTaskHistory(combined);
   };
 
   const handleDeleteHistoryEntry = async (historyEntry: any) => {
-    
     setDisintegratingHistoryId(historyEntry.id);
     await new Promise(resolve => setTimeout(resolve, 600));
 
     try {
-      // Restaura a tarefa para o estado anterior (oldValue)
-      if (historyEntry.oldValue && historyModalTask) {
-        const oldVal = JSON.parse(historyEntry.oldValue);
+      const oldValue = historyEntry.old_value || historyEntry.oldValue;
+      const newValue = historyEntry.new_value || historyEntry.newValue;
+      
+      if (historyEntry.entity_type === 'execution' && newValue && historyModalTask) {
+        const execData = typeof newValue === 'string' ? JSON.parse(newValue) : newValue;
+        const qtyToRemove = execData.quantidade || 0;
+        
+        const currentTask = tasks.find(t => t.id === historyModalTask.id);
+        if (currentTask && qtyToRemove > 0) {
+          const newCurrent = Math.max(0, (currentTask.measurementCurrent || 0) - qtyToRemove);
+          const newExecutions = (currentTask.executions || []).slice(0, -1);
+          
+          await updateTask(historyModalTask.id, {
+            measurementCurrent: newCurrent,
+            executions: newExecutions,
+            status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
+          });
+        }
+      }
+      else if (oldValue && historyModalTask) {
+        const oldVal = typeof oldValue === 'string' ? JSON.parse(oldValue) : oldValue;
         const toRestore: any = {};
-        // status
+        
         if (oldVal.status !== undefined) toRestore.status = oldVal.status;
-        // medição
+        
         const mc = oldVal.measurementCurrent ?? oldVal.measurement_current;
         if (mc !== undefined) toRestore.measurementCurrent = mc;
+        
         const mt = oldVal.measurementTarget ?? oldVal.measurement_target;
         if (mt !== undefined) toRestore.measurementTarget = mt;
-        // execucoes
+
         if (oldVal.executions !== undefined) toRestore.executions = oldVal.executions;
 
         if (Object.keys(toRestore).length > 0) {
           await updateTask(historyModalTask.id, toRestore);
         }
       }
-      // Deleta o registro do histórico
+      
       await deleteHistory(historyEntry.id);
-      // Atualiza a lista do modal
-      const changes = await getHistory('task', historyModalTask.id);
-      setTaskHistory(changes || []);
+      const [taskHistoryData, execHistoryData] = await Promise.all([
+        getHistory('task', historyModalTask.id),
+        getHistory('execution', historyModalTask.id)
+      ]);
+      const combined = [...(taskHistoryData || []), ...(execHistoryData || [])];
+      combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setTaskHistory(combined);
     } catch (error: any) {
       console.error('Erro ao excluir histórico:', error);
     } finally {
@@ -162,17 +192,25 @@ export default function Tarefas() {
     
     const dataToSave = {
       ...taskForm,
-      projectId: (isLinked && taskForm.projectId) ? Number(taskForm.projectId) : null,
+      projectId: (isLinked && taskForm.projectId) ? taskForm.projectId : null,
       assigneeId: taskForm.assigneeId || null
     };
 
 
     try {
       if (editingTask) {
-        await updateTask(editingTask.id, dataToSave);
+        const res = await updateTask(editingTask.id, dataToSave);
+        if (!res.success) {
+          alert('Erro ao atualizar: ' + res.error);
+          return;
+        }
         setIsModalOpen(false);
       } else {
-        await addTask(dataToSave);
+        const res = await addTask(dataToSave);
+        if (!res.success) {
+          alert('Erro ao criar tarefa: ' + res.error);
+          return;
+        }
       }
       
       setIsModalOpen(false);
@@ -182,14 +220,13 @@ export default function Tarefas() {
     }
   };
 
-  const handleSaveExecution = async () => {
+const handleSaveExecution = async () => {
     if (!executionModalTask) return;
     const qty = Number(executionForm.quantidade);
     if (!qty || qty <= 0) {
       return;
     }
     
-    // Get geolocation if possible
     let location = null;
     try {
       if ("geolocation" in navigator) {
@@ -209,7 +246,7 @@ export default function Tarefas() {
     if(!currentTask) return;
 
     const newCurrent = (currentTask.measurementCurrent || 0) + qty;
-    const updatedExecutions = [...(currentTask.executions || []), {
+    const newExecution = {
        id: Date.now(),
        colaboradorId: executionForm.colaboradorId,
        quantidade: qty,
@@ -217,15 +254,27 @@ export default function Tarefas() {
        observacao: executionForm.observacao,
        location: location,
        timestamp: new Date().toISOString()
-    }];
+    };
+    const updatedExecutions = [...(currentTask.executions || []), newExecution];
 
     try {
+      console.log('Salvando execução...', qty);
       await updateTask(currentTask.id, {
          measurementCurrent: newCurrent,
          executions: updatedExecutions,
          status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
-      });
-setExecutionModalTask(null);
+       });
+       
+       const collabName = users.find(u => u.id === executionForm.colaboradorId)?.name || 'Desconhecido';
+       console.log('Salvando no histórico - collaborator:', collabName);
+       await addHistory('execution', currentTask.id, 'create', null, {
+         quantidade: qty,
+         data: executionForm.data,
+         observacao: executionForm.observacao,
+         collaboratorName: collabName
+       });
+       
+       setExecutionModalTask(null);
       } catch (error: any) {
         console.error('Erro ao registrar execução:', error);
       }
@@ -292,7 +341,7 @@ setExecutionModalTask(null);
 
   const getAssigneeName = (id: any) => {
     if(!id) return 'Não atribuído';
-    const user = users.find(u => u.id === Number(id));
+    const user = users.find(u => String(u.id) === String(id));
     return user?.name || 'Não atribuído';
   };
 
@@ -584,7 +633,7 @@ setExecutionModalTask(null);
             <div className="modal-body">
                <div className="form-group">
                  <label>Colaborador *</label>
-                 <select value={executionForm.colaboradorId} onChange={e => setExecutionForm({...executionForm, colaboradorId: e.target.value})}>
+                 <select value={executionForm.colaboradorId || ''} onChange={e => setExecutionForm({...executionForm, colaboradorId: e.target.value})}>
                    <option value="">Selecione...</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                  </select>
@@ -630,59 +679,72 @@ setExecutionModalTask(null);
                    <br/><small>Alterações de criação, edição e exclusão aparecerão aqui.</small>
                  </p>
                ) : (
-                 <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {taskHistory.map((h: any, index) => (
-                      <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' ? 'var(--success)' : 'var(--accent)' }}>
-                              {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                                {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
-                              </span>
-                              {isAdmin && h.action === 'update' && h.oldValue && (
-                                <button
-                                  title="Excluir e reverter para estado anterior"
-                                  className={disintegratingHistoryId === h.id ? 'btn-disintegrate' : ''}
-                                  onClick={() => handleDeleteHistoryEntry(h)}
-                                  style={{
-                                    background: 'rgba(239,68,68,0.1)',
-                                    border: '1px solid rgba(239,68,68,0.3)',
-                                    borderRadius: '6px',
-                                    color: 'var(--danger)',
-                                    cursor: 'pointer',
-                                    padding: '3px 6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    fontSize: '11px',
-                                    lineHeight: 1
-                                  }}
-                                >
-                                  <Trash2 size={12}/>
-                                </button>
-                              )}
+<ul style={{ listStyle: 'none', padding: 0 }}>
+                      {taskHistory.map((h: any, index) => (
+                        <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', position: 'relative' }}>
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' && h.entity_type !== 'execution' ? 'var(--success)' : 'var(--accent)' }}>
+                                  {h.entity_type === 'execution' ? `Execução: +${JSON.parse(h.new_value || '{}').quantidade || 0}` : 
+                                   h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  Por: {h.user_name || h.userName || 'Sistema'}
+                                </span>
+                              </div>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                               <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                 {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
+                               </span>
+                               {isAdmin && (
+                                 <button
+                                   title={h.action === 'update' ? "Excluir e reverter para estado anterior" : "Excluir registro"}
+                                   className={disintegratingHistoryId === h.id ? 'btn-disintegrate' : ''}
+                                   onClick={() => handleDeleteHistoryEntry(h)}
+                                   style={{
+                                     background: 'rgba(239,68,68,0.1)',
+                                     border: '1px solid rgba(239,68,68,0.3)',
+                                     borderRadius: '6px',
+                                     color: 'var(--danger)',
+                                     cursor: 'pointer',
+                                     padding: '3px 6px',
+                                     display: 'flex',
+                                     alignItems: 'center',
+                                     gap: '4px',
+                                     fontSize: '11px',
+                                     lineHeight: 1
+                                   }}
+                                 >
+                                   <Trash2 size={12}/>
+                                 </button>
+                               )}
+                             </div>
+                          </div>
+                          {h.entity_type === 'execution' && h.new_value && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {(() => {
+                                try {
+                                  const execData = typeof h.new_value === 'string' ? JSON.parse(h.new_value) : h.new_value;
+                                  return `${execData.quantidade} unidades • ${execData.collaboratorName || 'Colaborador'} • ${execData.data || ''}`;
+                                } catch { return ''; }
+                              })()}
                             </div>
-                         </div>
-                         {h.action === 'update' && h.newValue && (
-                           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                             {(() => {
-                               try {
-                                 const oldVal = h.oldValue ? JSON.parse(h.oldValue) : {};
-                                 const newVal = JSON.parse(h.newValue);
-                                 const changes = Object.keys(newVal).filter(k => JSON.stringify(oldVal[k]) !== JSON.stringify(newVal[k]));
-                                 return changes.map(k => `${k}: ${oldVal[k] || '-'} → ${newVal[k]}`).join(', ');
-                               } catch { return ''; }
-                             })()}
-                           </div>
-                         )}
-                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                           Por: {h.userName || 'Sistema'}
-                         </div>
-                      </li>
-                    ))}
-                 </ul>
+                          )}
+                          {h.action === 'update' && h.new_value && h.old_value && h.entity_type !== 'execution' && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {(() => {
+                                try {
+                                  const oldVal = typeof h.old_value === 'string' ? JSON.parse(h.old_value) : h.old_value;
+                                  const newVal = typeof h.new_value === 'string' ? JSON.parse(h.new_value) : h.new_value;
+                                  const changes = Object.keys(newVal).filter(k => JSON.stringify(oldVal[k]) !== JSON.stringify(newVal[k]));
+                                  return changes.map(k => `${k}: ${oldVal[k] ?? '-'} → ${newVal[k]}`).join(', ');
+                                } catch { return ''; }
+                              })()}
+                            </div>
+                          )}
+                       </li>
+                     ))}
+                  </ul>
                )}
             </div>
             <div className="modal-footer">
@@ -718,7 +780,7 @@ setExecutionModalTask(null);
               {isLinked && (
                 <div className="form-group">
                   <label>Selecione o Projeto *</label>
-                  <select value={taskForm.projectId} onChange={e => setTaskForm({...taskForm, projectId: e.target.value})}>
+                  <select value={taskForm.projectId || ''} onChange={e => setTaskForm({...taskForm, projectId: e.target.value})}>
                     <option value="">Selecione...</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -733,7 +795,7 @@ setExecutionModalTask(null);
               <div className="form-row">
                 <div className="form-group">
                   <label>Responsável</label>
-                  <select value={taskForm.assigneeId} onChange={e => setTaskForm({...taskForm, assigneeId: e.target.value})}>
+                  <select value={taskForm.assigneeId || ''} onChange={e => setTaskForm({...taskForm, assigneeId: e.target.value})}>
                     <option value="">Não atribuído</option>
                     {users.map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
