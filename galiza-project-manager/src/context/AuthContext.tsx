@@ -44,7 +44,7 @@ export function AppProvider({ children }) {
           userData.role = 'sudo';
         }
         setIsFirstAccess(userData.first_access === true);
-        setIsAdmin(isSudoEmail || userData.role === 'admin' || userData.role === 'sudo');
+        setIsAdmin(isSudoEmail || userData.role?.toLowerCase() === 'admin' || userData.role?.toLowerCase() === 'sudo');
         setCurrentUser({ ...sessionUser, ...userData, role: isSudoEmail ? 'sudo' : userData.role });
       } else {
         // Nenhum registro encontrado — cria novo
@@ -94,58 +94,59 @@ const fetchFromSupabase = async (table) => {
       setIsLoading(false);
     }, 8000);
 
-  const initialize = async () => {
-  try {
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setCurrentUser(user);
-      setIsFirstAccess(user.first_access === true);
-      setIsAdmin(user.role === 'admin' || user.role === 'sudo');
-    }
+    const initialize = async () => {
+      try {
+        const storedUser = localStorage.getItem('currentUser');
+        
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          setCurrentUser(user);
+          setIsFirstAccess(user.first_access === true);
+          setIsAdmin(user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'sudo');
+        }
 
-    console.log('Carregando dados do banco...');
+        console.log('Carregando dados do banco...');
 
-    const [projectsData, tasksData, usersData] = await Promise.all([
-      fetchFromSupabase('projects'),
-      fetchFromSupabase('tasks'),
-      fetchFromSupabase('users')
-    ]);
+        const [projectsData, tasksData, usersData] = await Promise.all([
+          fetchFromSupabase('projects').catch(() => []),
+          fetchFromSupabase('tasks').catch(() => []),
+          fetchFromSupabase('users').catch(() => [])
+        ]);
 
-    console.log('Projects:', projectsData);
-    console.log('Tasks:', tasksData);
-    console.log('Users:', usersData);
+        console.log('Projects:', projectsData);
+        console.log('Tasks:', tasksData);
+        console.log('Users:', usersData);
 
-    const mapTaskToCamelCase = (t) => ({
-      ...t,
-      projectId: t.project_id,
-      assigneeId: t.assignee_id,
-      dueDate: t.due_date,
-      measurementTarget: t.measurement_target,
-      measurementCurrent: t.measurement_current,
-      measurementType: t.measurement_type,
-      daysLate: t.days_late
-    });
+        const mapTaskToCamelCase = (t) => ({
+          ...t,
+          projectId: t.project_id,
+          assigneeId: t.assignee_id,
+          dueDate: t.due_date,
+          measurementTarget: t.measurement_target,
+          measurementCurrent: t.measurement_current,
+          measurementType: t.measurement_type,
+          daysLate: t.days_late
+        });
 
-    const mapProjectToCamelCase = (p) => ({
-      ...p,
-      startDate: p.start_date,
-      endDate: p.end_date,
-      tasksCompleted: p.tasks_completed,
-      tasksTotal: p.tasks_total
-    });
+        const mapProjectToCamelCase = (p) => ({
+          ...p,
+          startDate: p.start_date,
+          endDate: p.end_date,
+          tasksCompleted: p.tasks_completed,
+          tasksTotal: p.tasks_total
+        });
 
-    setProjects(projectsData?.map(mapProjectToCamelCase) || []);
-    setTasks(tasksData?.map(mapTaskToCamelCase) || []);
-    setUsers(usersData || []);
-  } catch (err) {
-    console.error('Erro na inicialização:', err);
-  } finally {
-    clearTimeout(safetyTimeout);
-    setIsLoading(false);
-  }
-};
+        // Garantir que sejam arrays antes de fazer map
+        setProjects(Array.isArray(projectsData) ? projectsData.map(mapProjectToCamelCase) : []);
+        setTasks(Array.isArray(tasksData) ? tasksData.map(mapTaskToCamelCase) : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+      } catch (err) {
+        console.error('Erro na inicialização:', err);
+      } finally {
+        clearTimeout(safetyTimeout);
+        setIsLoading(false);
+      }
+    };
 
 initialize();
 

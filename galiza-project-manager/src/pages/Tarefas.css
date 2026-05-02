@@ -467,10 +467,17 @@
   background: var(--accent-subtle);
 }
 
+.rtc-icon-btn.danger {
+  color: var(--danger);
+  border-color: rgba(244, 63, 94, 0.2);
+  background: rgba(244, 63, 94, 0.05);
+}
+
 .rtc-icon-btn.danger:hover {
   border-color: rgba(244, 63, 94, 0.3);
   color: var(--danger);
   background: var(--danger-light);
+  transform: scale(1.05);
 }
 
 /* ─── Context Menu (reused from Projetos) ─── */

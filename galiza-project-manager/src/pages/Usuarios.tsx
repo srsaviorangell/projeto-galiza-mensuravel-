@@ -19,17 +19,26 @@ import {
   Phone,
   BadgeCheck,
   Briefcase,
-  Calendar
+  Calendar,
+  Copy,
+  Send,
+  Check
 } from 'lucide-react';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import './Usuarios.css';
 
+const COMMERCIAL_DOMAIN = '@galizanet.com.br';
+
 export default function Usuarios() {
-  const { users, currentUser, isAdmin, addUser, updateUser, deleteUser } = useContext(AppContext);
+  const { users, currentUser, isAdmin, addUser, updateUser, deleteUser, createInvite } = useContext(AppContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [inviteData, setInviteData] = useState({ email: '', role: 'user' });
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -73,8 +82,20 @@ export default function Usuarios() {
     setIsModalOpen(true);
   };
 
+  const validateEmailDomain = (email) => {
+    if (!email.toLowerCase().endsWith(COMMERCIAL_DOMAIN)) {
+      alert(`Apenas emails ${COMMERCIAL_DOMAIN} são permitidos`);
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.email.trim()) {
+      return;
+    }
+
+    if (!validateEmailDomain(formData.email)) {
       return;
     }
 
@@ -96,7 +117,7 @@ export default function Usuarios() {
         if (!formData.password) {
           return;
         }
-        await addUser({
+        const result = await addUser({
           name: formData.name,
           email: formData.email,
           password: formData.password,
@@ -106,6 +127,10 @@ export default function Usuarios() {
           status: formData.status,
           created_at: new Date().toISOString()
         });
+        
+        if (result.success && result.tempPassword) {
+          alert(`Usuário criado! Senha provisória: ${result.tempPassword}\n\nEnvie o link de acesso: ${result.inviteLink}`);
+        }
       }
       setIsModalOpen(false);
       setEditingUser(null);
@@ -115,12 +140,45 @@ export default function Usuarios() {
     }
   };
 
+  const handleOpenInvite = () => {
+    setInviteData({ email: '', role: 'user' });
+    setInviteLink('');
+    setInviteCopied(false);
+    setIsInviteModalOpen(true);
+  };
+
+  const handleSendInvite = async () => {
+    if (!validateEmailDomain(inviteData.email)) {
+      return;
+    }
+
+    const result = await createInvite(inviteData.email, inviteData.role);
+    
+    if (result.success) {
+      setInviteLink(result.link);
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
+
   const handleConfirmDelete = async (id) => {
     try {
-      await deleteUser(id);
-      setDeleteConfirm(null);
+      const result = await deleteUser(id);
+      if (result.success) {
+        setDeleteConfirm(null);
+      } else {
+        alert("Erro ao excluir usuário: " + result.error);
+        console.error('Erro ao excluir usuário:', result.error);
+      }
     } catch (error: any) {
-      console.error('Erro ao excluir usuário:', error);
+      console.error('Erro ao excluir usuário exception:', error);
+      alert("Erro inexperado ao excluir: " + error.message);
     }
   };
 
@@ -182,9 +240,13 @@ export default function Usuarios() {
               year: 'numeric'
             })}</span>
           </div>
+          <button className="btn-secondary" onClick={handleOpenInvite}>
+            <Send size={18} />
+            <span>Enviar Convite</span>
+          </button>
           <button className="btn-primary" onClick={handleOpenCreate}>
             <Plus size={18} />
-            <span>Novo Usuário</span>
+            <span>Cadastrar Usuário</span>
           </button>
         </div>
       </div>
@@ -411,6 +473,94 @@ export default function Usuarios() {
               </button>
               <button className="btn-primary" onClick={handleSubmit}>
                 {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Invite Modal */}
+      {isInviteModalOpen && createPortal(
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsInviteModalOpen(false)}>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Enviar Convite</h3>
+              <button className="modal-close" onClick={() => setIsInviteModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="invite-info-box">
+                <Mail size={32} />
+                <h4>Convite por Email</h4>
+                <p>
+                  Envie um convite para um novo colaborador. 
+                  O link de acesso será enviado para o email corporativo.
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label><Mail size={14} /> E-mail Corporativo</label>
+                <input
+                  type="email"
+                  placeholder={`nome${COMMERCIAL_DOMAIN}`}
+                  value={inviteData.email}
+                  onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+                />
+                <span className="form-hint">
+                  Apenas emails {COMMERCIAL_DOMAIN} são permitidos
+                </span>
+              </div>
+
+              <div className="form-group">
+                <label><Shield size={14} /> Função</label>
+                <select
+                  value={inviteData.role}
+                  onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                >
+                  <option value="user">Usuário Comum</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+
+              {!inviteLink ? (
+                <button 
+                  className="btn-primary" 
+                  onClick={handleSendInvite}
+                  style={{ width: '100%', marginTop: '1rem' }}
+                >
+                  <Send size={16} />
+                  Gerar Link de Convite
+                </button>
+              ) : (
+                <div className="invite-link-box">
+                  <p className="invite-success">
+                    <Check size={16} />
+                    Convite gerado com sucesso!
+                  </p>
+                  <p className="invite-instructions">
+                    Copie o link abaixo e envie por email para o colaborador:
+                  </p>
+                  <div className="invite-link-display">
+                    <code>{inviteLink}</code>
+                    <button 
+                      className="btn-icon"
+                      onClick={copyInviteLink}
+                      title="Copiar link"
+                    >
+                      {inviteCopied ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  {inviteCopied && (
+                    <p className="copy-success">Link copiado!</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setIsInviteModalOpen(false)}>
+                Fechar
               </button>
             </div>
           </div>

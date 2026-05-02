@@ -21,7 +21,7 @@ import {
   MoreVertical,
   ChevronDown,
 } from 'lucide-react';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import '../pages/Dashboard.css';
 import './Projetos.css';
 
@@ -69,7 +69,7 @@ function toDisplayFormat(dateStr: string) {
 }
 
 export default function Projetos() {
-  const { projects, tasks, addProject, updateProject, deleteProject } = useContext(AppContext);
+  const { projects, tasks, addProject, updateProject, deleteProject, isAdmin } = useContext(AppContext);
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<number | null>(null);
@@ -167,17 +167,21 @@ export default function Projetos() {
     }
     try {
       if (editingProject) {
-        await updateProject(editingProject, {
+        const res = await updateProject(editingProject, {
           name: formData.name,
           description: formData.description,
           difficulty: formData.difficulty,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
+          startDate: formData.startDate ? toDateInputFormat(formData.startDate) : null,
+          endDate: formData.endDate ? toDateInputFormat(formData.endDate) : null,
           files: formData.files,
           links: formData.links,
         });
+        if (!res.success) {
+          alert('Erro ao atualizar: ' + res.error);
+          return;
+        }
       } else {
-        await addProject({
+        const res = await addProject({
           name: formData.name,
           description: formData.description,
           difficulty: formData.difficulty,
@@ -186,12 +190,16 @@ export default function Projetos() {
           tasksTotal: 0,
           deadline: null,
           deadlineStatus: 'normal',
-          startDate: formData.startDate,
-          endDate: formData.endDate,
+          startDate: formData.startDate ? toDateInputFormat(formData.startDate) : null,
+          endDate: formData.endDate ? toDateInputFormat(formData.endDate) : null,
           status: 'Em andamento',
           files: formData.files,
           links: formData.links,
         });
+        if (!res.success) {
+          alert('Erro ao criar projeto: ' + res.error);
+          return;
+        }
       }
       setIsModalOpen(false);
       setEditingProject(null);
@@ -478,16 +486,27 @@ export default function Projetos() {
                       </div>
                     </div>
                     
-                    <div className="projeto-menu-wrapper">
-                      <button
-                        className="projeto-menu-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === proj.id ? null : proj.id);
-                        }}
-                      >
-                        <MoreVertical size={18} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          className="projeto-menu-btn text-danger"
+                          title="Excluir Projeto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirm(proj.id);
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button
+                          className="projeto-menu-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === proj.id ? null : proj.id);
+                          }}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                      </div>
                       {openMenuId === proj.id && (
                         <>
                           <div className="menu-backdrop" onClick={() => setOpenMenuId(null)} />
@@ -498,7 +517,6 @@ export default function Projetos() {
                         </>
                       )}
                     </div>
-                  </div>
 
                   {/* Tier 2: Description */}
                   <div className="projeto-subtitle" title={proj.description}>

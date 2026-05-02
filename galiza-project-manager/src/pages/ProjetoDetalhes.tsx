@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import { ArrowLeft, Edit2, Trash2, TrendingUp, CheckCircle2, Clock, Target, Plus, X, History, AlertCircle, Link2, Image as ImageIcon, ExternalLink, User as UserIcon } from 'lucide-react';
 import { CircularProgress } from '../components/CircularProgress';
 import './ProjetoDetalhes.css';
@@ -20,21 +20,6 @@ export default function ProjetoDetalhes() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
-
-  const openHistoryModal = async (task: any) => {
-    setHistoryModalTask(task);
-    const changes = await getHistory('task', task.id);
-    setTaskHistory(changes || []);
-  };
-
-  const openExecutionModal = (task: any) => {
-    setExecutionModalTask(task);
-    setExecutionForm({
-      ...executionForm,
-      colaboradorId: task.assigneeId || '',
-      data: new Date().toISOString().split('T')[0]
-    });
-  };
   
   // Project Edit Modal state
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -47,6 +32,22 @@ export default function ProjetoDetalhes() {
     data: new Date().toISOString().split('T')[0],
     observacao: ''
   });
+
+  const openHistoryModal = async (task: any) => {
+    setHistoryModalTask(task);
+    const changes = await getHistory('task', task.id);
+    setTaskHistory(changes || []);
+  };
+
+  const openExecutionModal = (task: any) => {
+    setExecutionModalTask(task);
+    setExecutionForm({
+      colaboradorId: task.assigneeId || '',
+      data: new Date().toISOString().split('T')[0],
+      quantidade: '',
+      observacao: ''
+    });
+  };
 
   // Links/Attachments State
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -69,8 +70,8 @@ export default function ProjetoDetalhes() {
 
   const [taskForm, setTaskForm] = useState(emptyTask);
 
-  const project = projects.find(p => p.id === Number(id));
-  const projectTasks = tasks.filter(t => t.projectId === Number(id));
+  const project = projects.find(p => String(p.id) === String(id));
+  const projectTasks = tasks.filter(t => String(t.projectId) === String(id));
 
   // If no project is found, return error
   if (!project) {
@@ -107,7 +108,7 @@ export default function ProjetoDetalhes() {
 
   const getAssigneeName = (assigneeId: any) => {
     if(!assigneeId) return 'Não atribuído';
-    const user = users.find(u => u.id === Number(assigneeId));
+    const user = users.find(u => String(u.id) === String(assigneeId));
     return user?.name || 'Não atribuído';
   };
 

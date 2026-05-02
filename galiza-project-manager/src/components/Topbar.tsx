@@ -163,7 +163,7 @@ export default function Topbar() {
 
   const navItems = [
     { name: 'Dashboard', path: '/' },
-    { name: 'Projetos', path: '/projetos' },
+    { name: 'Projetos', path: '/projetos', adminOnly: true },
     { name: 'Tarefas', path: '/tarefas' },
     { name: 'Usuários', path: '/usuarios', adminOnly: true },
     { name: 'Colaboradores', path: '/colaboradores', adminOnly: true },

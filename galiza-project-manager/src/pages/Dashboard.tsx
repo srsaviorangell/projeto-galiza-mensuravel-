@@ -18,11 +18,11 @@ import {
   Activity
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { projects, tasks, users, stats, userStats, userTasks, isAdmin } = useContext(AppContext);
+  const { projects = [], tasks = [], users = [], stats, userStats, userTasks = [], isAdmin } = useContext(AppContext);
   const navigate = useNavigate();
   
   const displayTasks = isAdmin ? tasks : userTasks;
@@ -62,7 +62,7 @@ export default function Dashboard() {
         data.push({ producao: dailyActs });
       }
       
-      return { ...collab, data, total };
+      return { ...collab, data, total, type: 'user' as const };
     });
   }, [tasks, allAssignees, sparklineRange]);
 
@@ -85,9 +85,17 @@ export default function Dashboard() {
         data.push({ producao: dailyActs });
       }
       
-      return { ...proj, data, total };
+      return { ...proj, data, total, type: 'project' as const };
     });
   }, [tasks, projects, sparklineRange]);
+
+  const filteredCollabsWithActivity = useMemo(() => {
+    return collabsSparklineData.filter(c => c.total > 0);
+  }, [collabsSparklineData]);
+
+  const filteredProjectsWithActivity = useMemo(() => {
+    return projectsSparklineData.filter(p => p.total > 0);
+  }, [projectsSparklineData]);
 
   // Expanded Chart Logic
   const targetTasks = useMemo(() => {
@@ -419,7 +427,7 @@ export default function Dashboard() {
             </div>
             
             <div className="sparklines-list">
-              {[...collabsSparklineData, ...projectsSparklineData].map(item => (
+              {[...filteredCollabsWithActivity, ...filteredProjectsWithActivity].map(item => (
                 <div 
                   key={`${item.type || 'proj'}-${item.id}`} 
                   className="sparkline-item-card"
@@ -444,7 +452,7 @@ export default function Dashboard() {
                            isAnimationActive={false}
                            dot={(props: any) => {
                              const { cx, cy, index, dataCount } = props;
-                             if (index === dataCount - 1) { // generic dynamic end dot
+                             if (index === dataCount - 1) {
                                return <circle key={index} cx={cx} cy={cy} r={3} fill="#fff" stroke="none" />;
                              }
                              return <span key={index} />;
@@ -455,6 +463,12 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+              {filteredCollabsWithActivity.length === 0 && filteredProjectsWithActivity.length === 0 && (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                  <Activity size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                  <p>Nenhuma atividade registrada neste período.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 /* src/pages/Colaboradores.tsx */
 import React, { useState, useMemo, useContext } from 'react';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import { 
   Users, MapPin, Clock, Calendar, 
   Map as MapIcon, ShieldAlert, 

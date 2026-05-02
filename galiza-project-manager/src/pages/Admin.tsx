@@ -6,7 +6,7 @@ import {
   BarChart3, FileText, X, Download, Calendar,
   CheckCircle2, Clock, User, Plus, Settings, ArrowUpRight
 } from 'lucide-react';
-import { AppContext } from '../App';
+import { AppContext } from '../context/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';

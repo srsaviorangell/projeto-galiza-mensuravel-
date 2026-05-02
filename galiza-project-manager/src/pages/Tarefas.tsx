@@ -1,5 +1,5 @@
 /* src/pages/Tarefas.tsx */
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AppContext } from '../context/AuthContext';
@@ -12,13 +12,43 @@ import { CircularProgress } from '../components/CircularProgress';
 import './Tarefas.css';
 
 export default function Tarefas() {
-  const { tasks, userTasks, projects, users, addTask, updateTask, deleteTask, isAdmin, assignTask, getAllAssignees, addHistory, getHistory, deleteHistory } = useContext(AppContext);
+  const context = useContext(AppContext);
+  
+  // Safety check to avoid crash if context is missing
+  if (!context) {
+    return <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>Carregando contexto...</div>;
+  }
+
+  const { 
+    tasks = [], 
+    userTasks = [], 
+    projects = [], 
+    users = [], 
+    addTask, 
+    updateTask, 
+    deleteTask, 
+    isAdmin, 
+    assignTask, 
+    getAllAssignees, 
+    addHistory, 
+    getHistory, 
+    deleteHistory 
+  } = context;
+  
   const navigate = useNavigate();
   
+  // Debug log for production tracking
+  useEffect(() => {
+    console.log('Tarefas Page Loaded:', { tasksCount: tasks?.length, projectsCount: projects?.length, isAdmin });
+  }, [tasks, projects, isAdmin]);
+
   const [filterProject, setFilterProject] = useState('all'); // 'all', 'avulsa', or projectId
   
   const displayedTasks = useMemo(() => {
-    let base = isAdmin ? tasks : userTasks;
+    const taskList = Array.isArray(tasks) ? tasks : [];
+    const userTaskList = Array.isArray(userTasks) ? userTasks : [];
+    let base = isAdmin ? taskList : userTaskList;
+    
     if (filterProject === 'avulsa') {
       base = base.filter((t: any) => !t.projectId);
     } else if (filterProject !== 'all' && filterProject !== '') {
@@ -50,11 +80,9 @@ export default function Tarefas() {
     setHistoryModalTask(task);
     console.log('Buscando histórico para task:', task.id);
     const [taskHistoryData, execHistoryData] = await Promise.all([
-      getHistory('task', task.id),
-      getHistory('execution', task.id)
+      getHistory('task', task.id).catch(() => []),
+      getHistory('execution', task.id).catch(() => [])
     ]);
-    console.log('Histórico task:', taskHistoryData);
-    console.log('Histórico execution:', execHistoryData);
     const combined = [...(taskHistoryData || []), ...(execHistoryData || [])];
     combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     setTaskHistory(combined);
@@ -105,8 +133,8 @@ export default function Tarefas() {
       
       await deleteHistory(historyEntry.id);
       const [taskHistoryData, execHistoryData] = await Promise.all([
-        getHistory('task', historyModalTask.id),
-        getHistory('execution', historyModalTask.id)
+        getHistory('task', historyModalTask.id).catch(() => []),
+        getHistory('execution', historyModalTask.id).catch(() => [])
       ]);
       const combined = [...(taskHistoryData || []), ...(execHistoryData || [])];
       combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -155,7 +183,8 @@ export default function Tarefas() {
 
   // Filtering + Sorting (A Fazer primeiro, Concluída por último)
   const filteredTasks = useMemo(() => {
-    const filtered = displayedTasks.filter(t => {
+    const taskList = Array.isArray(displayedTasks) ? displayedTasks : [];
+    const filtered = taskList.filter(t => {
       const matchSearch = (t.title || t.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'all' ? true : t.status === filterStatus;
       return matchSearch && matchStatus;
@@ -234,8 +263,8 @@ const handleSaveExecution = async () => {
           navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
         });
         location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lat: (position as any).coords.latitude,
+          lng: (position as any).coords.longitude
         };
       }
     } catch (err) {
@@ -323,6 +352,7 @@ const handleSaveExecution = async () => {
   };
 
   const handleDelete = async (id: number) => {
+      if (!window.confirm('Tem certeza que deseja excluir esta atividade?')) return;
       setDisintegratingTaskId(id);
       await new Promise(resolve => setTimeout(resolve, 600));
       try {
@@ -430,7 +460,7 @@ const handleSaveExecution = async () => {
           >
             <option value="all">Todos os Projetos</option>
             <option value="avulsa">Avulsas (Sem Projeto)</option>
-            {projects.map((p: any) => (
+            {Array.isArray(projects) && projects.map((p: any) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
@@ -454,103 +484,108 @@ const handleSaveExecution = async () => {
         const done    = filteredTasks.filter(t => t.status === 'Concluída');
 
         const renderFullCard = (task: any, isDone = false) => {
-          const pName = getProjectName(task.projectId);
-          const assigneeName = getAssigneeName(task.assigneeId);
-          const taskPct = (task.measurementTarget || 1) > 0
-            ? Math.min(((task.measurementCurrent || 0) / (task.measurementTarget || 1)) * 100, 100)
-            : 0;
-          const dueD = task.dueDate ? new Date(task.dueDate) : null;
-          if (dueD) dueD.setHours(0,0,0,0);
-          const today = new Date(); today.setHours(0,0,0,0);
-          const isDelayed = dueD && today.getTime() > dueD.getTime() && !isDone;
-          const daysDelayed = isDelayed ? Math.floor((today.getTime() - dueD!.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          try {
+            const pName = getProjectName(task.projectId);
+            const assigneeName = getAssigneeName(task.assigneeId);
+            const taskPct = (task.measurementTarget || 1) > 0
+              ? Math.min(((task.measurementCurrent || 0) / (task.measurementTarget || 1)) * 100, 100)
+              : 0;
+            const dueD = task.dueDate ? new Date(task.dueDate) : null;
+            if (dueD) dueD.setHours(0,0,0,0);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const isDelayed = dueD && today.getTime() > dueD.getTime() && !isDone;
+            const daysDelayed = isDelayed ? Math.floor((today.getTime() - dueD!.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
-          return (
-            <div className={`rich-task-card ${isDone ? 'rtc-status-concluida' : 'rtc-status-afazer'}`}>
-              {/* HEADER */}
-              <div className="rich-task-header">
-                <div>
-                  <span className="rtc-title" title={task.title || task.name} style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
-                  {pName ? (
-                    <div className="rtc-project-badge"><Link2 size={10} /> {pName}</div>
-                  ) : (
-                    <div className="rtc-project-badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}>ATIVIDADE AVULSA</div>
+            return (
+              <div className={`rich-task-card ${isDone ? 'rtc-status-concluida' : 'rtc-status-afazer'}`}>
+                {/* HEADER */}
+                <div className="rich-task-header">
+                  <div>
+                    <span className="rtc-title" title={task.title || task.name} style={isDone ? { color: 'var(--success)' } : {}}>{task.title || task.name}</span>
+                    {pName ? (
+                      <div className="rtc-project-badge"><Link2 size={10} /> {pName}</div>
+                    ) : (
+                      <div className="rtc-project-badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}>ATIVIDADE AVULSA</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span className="rtc-tag" style={isDone ? { backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)' } : {}}>{task.status}</span>
+                    <button className="rtc-icon-btn" style={{ border: 'none', background: 'transparent' }} onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}><MoreVertical size={16}/></button>
+                  </div>
+                  {openMenuId === task.id && (
+                    <div className="projeto-context-menu">
+                      <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
+                      <button 
+                        className={`menu-danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                        onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span className="rtc-tag" style={isDone ? { backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)' } : {}}>{task.status}</span>
-                  {!isDone && <button className="rtc-icon-btn" style={{ border: 'none', background: 'transparent' }} onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}><MoreVertical size={16}/></button>}
+                {/* DESC */}
+                <div className="rtc-desc">
+                  <div className="rtc-info-row">
+                    <div className="rtc-color-dot" style={{ backgroundColor: task.color || 'var(--accent)' }} />
+                    <span className="rtc-priority-label">{task.priority || 'Média'}</span>
+                  </div>
+                  <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
+                  <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                    <div className="rtc-badge-item">
+                      <div className="rtc-user-avatar">{assigneeName.charAt(0).toUpperCase()}</div>
+                      <span className="rtc-user-name">{assigneeName}</span>
+                    </div>
+                    {isDelayed && <div className="rtc-badge-item danger"><AlertCircle size={14}/> ATRASADA {daysDelayed}D</div>}
+                    {task.dueDate && !isDone && <div className="rtc-badge-item warning"><Clock size={14}/> PRAZO: {task.dueDate}</div>}
+                  </div>
                 </div>
-                {openMenuId === task.id && (
-                  <div className="projeto-context-menu">
-                    <button onClick={() => { handleOpenModal(task); setOpenMenuId(null); }}><Edit3 size={14} /> Editar</button>
+                {/* PROGRESSO */}
+                <div className="rtc-progress-area">
+                  <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} color={isDone ? 'var(--success)' : 'var(--accent)'} size={72} />
+                  <div className="rtc-progress-info">
+                    <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
+                    <div className="rtc-progress-bar-container">
+                      <div className="rtc-progress-bar-fill" style={{ width: `${isDone ? 100 : taskPct}%`, background: isDone ? 'var(--success)' : undefined }} />
+                    </div>
+                  </div>
+                </div>
+                {/* ALERT */}
+                <div className="rtc-alert-slot">
+                  {isDone && <div className="rtc-alert" style={{ color: 'var(--success)' }}><CheckCircle2 size={14}/> Tarefa finalizada com sucesso</div>}
+                </div>
+                {/* AÇÕES */}
+                <div className="rtc-actions">
+                  {isDone ? (
+                    <button className="btn-registrar" onClick={() => openHistoryModal(task)} style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                      Ver Histórico
+                    </button>
+                  ) : (
+                    <button className="btn-registrar" onClick={() => openExecutionModal(task)} disabled={!task.assigneeId} style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : {}}>
+                      {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
+                    </button>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {isDone && isAdmin && (
+                      <button className="rtc-icon-btn" onClick={() => handleRevertExecution(task)} title="Reverter Conclusão" style={{ color: 'var(--accent)', border: '1px solid rgba(255,100,0,0.3)' }}><RotateCcw size={16}/></button>
+                    )}
+                    <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
+                    {!isDone && <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>}
                     <button 
-                      className={`menu-danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
-                      onClick={() => { handleDelete(task.id); setOpenMenuId(null); }}
+                      className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
+                      onClick={() => handleDelete(task.id)} 
+                      title="Excluir"
                     >
-                      <Trash2 size={14} /> Excluir
+                      <Trash2 size={16}/>
                     </button>
                   </div>
-                )}
-              </div>
-              {/* DESC */}
-              <div className="rtc-desc">
-                <div className="rtc-info-row">
-                  <div className="rtc-color-dot" style={{ backgroundColor: task.color || 'var(--accent)' }} />
-                  <span className="rtc-priority-label">{task.priority || 'Média'}</span>
-                </div>
-                <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
-                <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-                  <div className="rtc-badge-item">
-                    <div className="rtc-user-avatar">{assigneeName.charAt(0).toUpperCase()}</div>
-                    <span className="rtc-user-name">{assigneeName}</span>
-                  </div>
-                  {isDelayed && <div className="rtc-badge-item danger"><AlertCircle size={14}/> ATRASADA {daysDelayed}D</div>}
-                  {task.dueDate && !isDone && <div className="rtc-badge-item warning"><Clock size={14}/> PRAZO: {task.dueDate}</div>}
                 </div>
               </div>
-              {/* PROGRESSO */}
-              <div className="rtc-progress-area">
-                <CircularProgress current={task.measurementCurrent || 0} total={task.measurementTarget || 1} color={isDone ? 'var(--success)' : 'var(--accent)'} size={72} />
-                <div className="rtc-progress-info">
-                  <span className="rtc-progress-text">{task.measurementCurrent || 0} {task.measurementType} de {task.measurementTarget || 1} {task.measurementType}</span>
-                  <div className="rtc-progress-bar-container">
-                    <div className="rtc-progress-bar-fill" style={{ width: `${isDone ? 100 : taskPct}%`, background: isDone ? 'var(--success)' : undefined }} />
-                  </div>
-                </div>
-              </div>
-              {/* ALERT */}
-              <div className="rtc-alert-slot">
-                {isDone && <div className="rtc-alert" style={{ color: 'var(--success)' }}><CheckCircle2 size={14}/> Tarefa finalizada com sucesso</div>}
-              </div>
-              {/* AÇÕES */}
-              <div className="rtc-actions">
-                {isDone ? (
-                  <button className="btn-registrar" onClick={() => openHistoryModal(task)} style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.4)' }}>
-                    Ver Histórico
-                  </button>
-                ) : (
-                  <button className="btn-registrar" onClick={() => openExecutionModal(task)} disabled={!task.assigneeId} style={!task.assigneeId ? { background: 'rgba(255,255,255,0.08)', cursor: 'not-allowed', color: 'var(--text-tertiary)', boxShadow: 'none' } : {}}>
-                    {task.assigneeId ? 'Lançar Atividade' : 'Sem Responsável'}
-                  </button>
-                )}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {isDone && isAdmin && (
-                    <button className="rtc-icon-btn" onClick={() => handleRevertExecution(task)} title="Reverter Conclusão" style={{ color: 'var(--accent)', border: '1px solid rgba(255,100,0,0.3)' }}><RotateCcw size={16}/></button>
-                  )}
-                  <button className="rtc-icon-btn" onClick={() => openHistoryModal(task)} title="Histórico"><History size={16}/></button>
-                  {!isDone && <button className="rtc-icon-btn" onClick={() => openEditTask(task)} title="Editar"><Edit3 size={16}/></button>}
-                  <button 
-                    className={`rtc-icon-btn danger ${disintegratingTaskId === task.id ? 'btn-disintegrate' : ''}`} 
-                    onClick={() => handleDelete(task.id)} 
-                    title="Excluir"
-                  >
-                    <Trash2 size={16}/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
+            );
+          } catch (e) {
+            console.error('Error rendering task card:', task, e);
+            return <div className="rich-task-card" style={{ padding: '20px', color: 'var(--danger)' }}>Erro ao exibir tarefa #{task?.id}</div>;
+          }
         };
 
         return (
@@ -595,17 +630,23 @@ const handleSaveExecution = async () => {
                   return (
                     <div key={task.id} className="rtc-accordion">
                       {/* ROW COLAPSADO */}
-                      <button className="rtc-accordion-row" onClick={() => toggleDoneExpand(task.id)}>
-                        <div className="rtc-accordion-left">
-                          <CheckCircle2 size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                          <span className="rtc-accordion-title">{task.title || task.name}</span>
-                          {pName && <span className="rtc-accordion-proj"><Link2 size={9}/> {pName}</span>}
+                      <div className="rtc-accordion-row" style={{ display: 'flex', alignItems: 'center' }}>
+                        <div 
+                          className="rtc-accordion-click-area" 
+                          onClick={() => toggleDoneExpand(task.id)} 
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                        >
+                          <div className="rtc-accordion-left">
+                            <CheckCircle2 size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                            <span className="rtc-accordion-title">{task.title || task.name}</span>
+                            {pName && <span className="rtc-accordion-proj"><Link2 size={9}/> {pName}</span>}
+                          </div>
+                          <div className="rtc-accordion-right">
+                            <span className="rtc-tag" style={{ backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)', fontSize: '10px', padding: '2px 8px' }}>Concluída</span>
+                            <span className="rtc-accordion-chevron" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                          </div>
                         </div>
-                        <div className="rtc-accordion-right">
-                          <span className="rtc-tag" style={{ backgroundColor: 'rgba(52,211,153,0.1)', color: 'var(--success)', borderColor: 'rgba(52,211,153,0.2)', fontSize: '10px', padding: '2px 8px' }}>Concluída</span>
-                          <span className="rtc-accordion-chevron" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
-                        </div>
-                      </button>
+                      </div>
                       {/* CARD EXPANDIDO */}
                       {isExpanded && (
                         <div className="rtc-accordion-body">
@@ -679,7 +720,7 @@ const handleSaveExecution = async () => {
                    <br/><small>Alterações de criação, edição e exclusão aparecerão aqui.</small>
                  </p>
                ) : (
-<ul style={{ listStyle: 'none', padding: 0 }}>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
                       {taskHistory.map((h: any, index) => (
                         <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', position: 'relative' }}>
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
@@ -699,21 +740,9 @@ const handleSaveExecution = async () => {
                                {isAdmin && (
                                  <button
                                    title={h.action === 'update' ? "Excluir e reverter para estado anterior" : "Excluir registro"}
-                                   className={disintegratingHistoryId === h.id ? 'btn-disintegrate' : ''}
+                                   className={`rtc-icon-btn danger mini ${disintegratingHistoryId === h.id ? 'btn-disintegrate' : ''}`}
                                    onClick={() => handleDeleteHistoryEntry(h)}
-                                   style={{
-                                     background: 'rgba(239,68,68,0.1)',
-                                     border: '1px solid rgba(239,68,68,0.3)',
-                                     borderRadius: '6px',
-                                     color: 'var(--danger)',
-                                     cursor: 'pointer',
-                                     padding: '3px 6px',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     gap: '4px',
-                                     fontSize: '11px',
-                                     lineHeight: 1
-                                   }}
+                                   style={{ width: '26px', height: '26px' }}
                                  >
                                    <Trash2 size={12}/>
                                  </button>
@@ -743,8 +772,8 @@ const handleSaveExecution = async () => {
                             </div>
                           )}
                        </li>
-                     ))}
-                  </ul>
+                      ))}
+                   </ul>
                )}
             </div>
             <div className="modal-footer">
