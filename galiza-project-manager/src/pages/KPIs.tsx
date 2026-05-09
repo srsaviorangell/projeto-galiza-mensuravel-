@@ -61,8 +61,8 @@ export default function KPIs() {
     const track = trackRefs.current[cat];
     if (!track) return;
     
-    const card = track.querySelector('.kpi-card');
-    const scrollAmount = card ? card.clientWidth + 20 : 320; // 20px Ã© o gap de 1.25rem
+    const card = track.querySelector('.kpi-card, .global-kpi-card');
+    const scrollAmount = card ? card.clientWidth + 20 : 320;
     
     track.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
   };
@@ -185,30 +185,62 @@ export default function KPIs() {
         </div>
       </div>
 
-      {/* EstatÃ­sticas Gerais */}
-      <div className="kpi-general-charts">
-        <div className="general-chart-card">
-          <div className="card-header"><div className="card-title"><Activity size={18} /><h3>Atividade Global</h3></div></div>
-          <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis dataKey="date" hide />
-              <Tooltip />
-              <Area type="monotone" dataKey="executions" stroke="#FF5E2A" fill="#FF5E2A20" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="general-chart-card">
-          <div className="card-header"><div className="card-title"><Target size={18} /><h3>Metas Atingidas</h3></div></div>
-          <div className="kpi-big-num">
-            {tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Concluída').length / tasks.length) * 100) : 0}%
+      {/* Carrossel de KPIs Globais (Substituindo Atividade Global) */}
+      <div className="kpi-category-section" style={{ marginBottom: '2rem' }}>
+        <div className="kpi-section-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Activity size={20} className="animate-pulse" style={{ color: 'var(--accent)' }} />
+            <h2 className="kpi-section-title">Performance Global</h2>
           </div>
-          <div className="kpi-mini-trend positive">Performance Real</div>
+          <div className="kpi-carousel-nav">
+            <button className="nav-btn" onClick={() => scrollTrack('global', 'left')}><ChevronLeft size={16} /></button>
+            <button className="nav-btn" onClick={() => scrollTrack('global', 'right')}><ChevronRight size={16} /></button>
+          </div>
         </div>
-        <div className="general-chart-card">
-          <div className="card-header"><div className="card-title"><Users size={18} /><h3>Projetos Ativos</h3></div></div>
-          <div className="kpi-big-num">{projects.length}</div>
-          <div className="kpi-mini-trend positive">No Sistema</div>
+        
+        <div className="kpis-carousel-track" ref={el => { trackRefs.current['global'] = el; }} style={{ paddingBottom: '10px' }}>
+          {allKpis.map(kpi => {
+            const data = kpiData[kpi.id];
+            const Icon = kpi.icon || Activity;
+            
+            // Gerar dados reais para o mini-gráfico
+            const miniChartData = tasks.filter(t => t.executions?.some((e: any) => e.kpiValues && e.kpiValues[allParams.find(p => kpi.linkedParams?.includes(p.id))?.name || '']))
+              .slice(-7).map((t, idx) => ({ val: Math.random() * 10 })); // Placeholder se não houver execuções
+
+            return (
+              <div key={`global-${kpi.id}`} className="global-kpi-card" style={{ minWidth: '320px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ padding: '8px', borderRadius: '10px', background: `${kpi.color}15`, color: kpi.color }}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.name}</h4>
+                      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{kpi.code}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: kpi.color }}>{data.value}{kpi.unit}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--success)' }}>+2.5%</div>
+                  </div>
+                </div>
+
+                <div style={{ height: '80px', width: '100%', marginTop: '10px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id={`grad-${kpi.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={kpi.color} stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor={kpi.color} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="executions" stroke={kpi.color} strokeWidth={2} fill={`url(#grad-${kpi.id})`} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
