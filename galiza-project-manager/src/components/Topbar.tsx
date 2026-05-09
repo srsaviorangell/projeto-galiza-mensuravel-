@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, User, Moon, Sun, Menu, X, LogOut, Clock, AlertTriangle, CheckCircle2, Check } from 'lucide-react';
-import { useApp } from '../App';
+import { Bell, User, Moon, Sun, Menu, X, LogOut, Clock, AlertTriangle, CheckCircle2, Check, Database } from 'lucide-react';
+import { useApp } from '../context/AuthContext';
 import './Topbar.css';
 
 interface Notification {
@@ -162,15 +162,30 @@ export default function Topbar() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const navItems = [
-    { name: 'Dashboard', path: '/' },
     { name: 'Projetos', path: '/projetos', adminOnly: true },
     { name: 'Tarefas', path: '/tarefas' },
     { name: 'Usuários', path: '/usuarios', adminOnly: true },
-    { name: 'Colaboradores', path: '/colaboradores', adminOnly: true },
-    { name: 'Admin', path: '/admin', adminOnly: true }
+    { name: 'Equipe', path: '/colaboradores', adminOnly: true },
+    { name: 'KPIs', path: '/kpis', adminOnly: true },
+    { name: 'Dados', path: '/parametros', adminOnly: true },
+    { name: 'Painel', path: '/admin', adminOnly: true }
   ];
 
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+
+  // Ícones para o bottom nav mobile
+  const getNavIcon = (path: string, size = 20) => {
+    switch (path) {
+      case '/projetos': return <Menu size={size} />;
+      case '/tarefas': return <CheckCircle2 size={size} />;
+      case '/usuarios': return <User size={size} />;
+      case '/colaboradores': return <User size={size} />;
+      case '/kpis': return <AlertTriangle size={size} />;
+      case '/parametros': return <Database size={size} />;
+      case '/admin': return <Clock size={size} />;
+      default: return <Menu size={size} />;
+    }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -188,158 +203,150 @@ export default function Topbar() {
     }
   };
 
-  return (
-    <header className="topbar">
-      <div className="topbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        <img src={logoFull} alt="Galiza Gestão de Projetos" className="img-logo-full" />
+  // Renderiza o dropdown de notificações via Portal
+  const notificationDropdown = showNotifications ? createPortal(
+    <div className="portal-overlay" onClick={() => setShowNotifications(false)}>
+      <div className="portal-dropdown notification-dropdown" onClick={e => e.stopPropagation()}>
+        <div className="notification-header">
+          <h4>Notificações</h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="notification-count">{notifications.length} itens</span>
+            {notifications.length > 0 && (
+              <button 
+                onClick={() => handleMarkAllAsRead(notifications)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Limpar Tudo
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="notification-list">
+          {notifications.length === 0 ? (
+            <div className="notification-empty">
+              <Bell size={32} />
+              <p>Nenhuma notificação</p>
+            </div>
+          ) : (
+            notifications.map(notif => (
+              <div 
+                key={notif.id} 
+                className="notification-item"
+                onClick={() => handleMarkAsRead(notif.id)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="notification-icon" style={{ color: getNotificationColor(notif.type) }}>
+                  {getNotificationIcon(notif.type)}
+                </div>
+                <div className="notification-content">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span className="notification-title">{notif.title}</span>
+                    <button 
+                      className="notif-check-btn" 
+                      onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notif.id); }}
+                      title="Marcar como lido"
+                    >
+                      <Check size={14} />
+                    </button>
+                  </div>
+                  <span className="notification-message">{notif.message}</span>
+                  <span className="notification-time">
+                    {notif.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
-      
-      <nav className="topbar-nav">
-        {filteredNavItems.map((item) => (
-          <NavLink 
-            key={item.path} 
-            to={item.path}
-            className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}
+    </div>,
+    document.body
+  ) : null;
+
+  // Renderiza o dropdown de usuário via Portal
+  const userDropdown = showUserMenu ? createPortal(
+    <div className="portal-overlay" onClick={() => setShowUserMenu(false)}>
+      <div className="portal-dropdown user-dropdown" onClick={e => e.stopPropagation()}>
+        <div className="user-info">
+          <div className="user-avatar">{currentUser?.name?.charAt(0) || 'U'}</div>
+          <div className="user-details">
+            <span className="user-name">{currentUser?.name}</span>
+            <span className="user-role">{currentUser?.role}</span>
+          </div>
+        </div>
+        <div className="user-menu-items">
+          <button onClick={toggleTheme}>
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
+          </button>
+          <button onClick={handleLogout} className="logout-btn">
+            <LogOut size={18} />
+            Sair
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <header className="topbar">
+        <div className="topbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+          <img src={logoFull} alt="Galiza Gestão de Projetos" className="img-logo-full" />
+        </div>
+        
+        <nav className="topbar-nav">
+          {filteredNavItems.map((item) => (
+            <NavLink 
+              key={item.path} 
+              to={item.path}
+              className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}
+            >
+              {item.name}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="topbar-actions">
+          <button 
+            className="action-button icon-btn"
+            onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
           >
-            {item.name}
-          </NavLink>
-        ))}
-      </nav>
+            <Bell size={20} />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </button>
 
-      <div className="topbar-actions">
-        <div className="bottom-nav-actions">
-          <div className="notification-wrapper" ref={notifRef}>
-            <button 
-              className="action-button icon-btn"
-              onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
-            >
-              <Bell size={20} />
-              {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-            </button>
-            
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <h4>Notificações</h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="notification-count">{notifications.length} itens</span>
-                    {notifications.length > 0 && (
-                      <button 
-                        onClick={() => handleMarkAllAsRead(notifications)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        Limpar Tudo
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="notification-list">
-                  {notifications.length === 0 ? (
-                    <div className="notification-empty">
-                      <Bell size={32} />
-                      <p>Nenhuma notificação</p>
-                    </div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className="notification-item"
-                        onClick={() => handleMarkAsRead(notif.id)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div 
-                          className="notification-icon"
-                          style={{ color: getNotificationColor(notif.type) }}
-                        >
-                          {getNotificationIcon(notif.type)}
-                        </div>
-                        <div className="notification-content">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <span className="notification-title">{notif.title}</span>
-                            <button 
-                              className="notif-check-btn" 
-                              onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notif.id); }}
-                              title="Marcar como lido"
-                            >
-                              <Check size={14} />
-                            </button>
-                          </div>
-                          <span className="notification-message">{notif.message}</span>
-                          <span className="notification-time">
-                            {notif.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="user-menu-wrapper" ref={userRef}>
-            <button 
-              className="action-button icon-btn"
-              onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }}
-            >
-              <User size={20} />
-            </button>
-            
-            {showUserMenu && (
-              <div className="user-dropdown">
-                <div className="user-info">
-                  <div className="user-avatar">{currentUser?.name?.charAt(0) || 'U'}</div>
-                  <div className="user-details">
-                    <span className="user-name">{currentUser?.name}</span>
-                    <span className="user-role">{currentUser?.role}</span>
-                  </div>
-                </div>
-                <div className="user-menu-items">
-                  <button onClick={toggleTheme}>
-                    {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                    {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
-                  </button>
-                  <button onClick={handleLogout} className="logout-btn">
-                    <LogOut size={18} />
-                    Sair
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <button 
+            className="action-button icon-btn"
+            onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }}
+          >
+            <User size={20} />
+          </button>
 
           <button className="action-button icon-btn theme-btn" onClick={toggleTheme}>
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
-        
-        <button 
-          className="action-button icon-btn mobile-menu-btn"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
+      </header>
 
-      {isMobileMenuOpen && (
-        <div className="mobile-nav-overlay" onClick={() => setIsMobileMenuOpen(false)}>
-          <nav className="mobile-nav" onClick={e => e.stopPropagation()}>
-            {filteredNavItems.map((item) => (
-              <NavLink 
-                key={item.path} 
-                to={item.path}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}
-              >
-                {item.name}
-              </NavLink>
-            ))}
-            <button className="nav-link" onClick={handleLogout} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-               Sair
-            </button>
-          </nav>
-        </div>
-      )}
-    </header>
+      {/* Bottom Navigation Bar — mobile only */}
+      <nav className="mobile-bottom-nav">
+        <NavLink to="/" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} end>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Início</span>
+        </NavLink>
+        {filteredNavItems.map(item => (
+          <NavLink key={item.path} to={item.path} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            {getNavIcon(item.path, 20)}
+            <span>{item.name}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Portais dos dropdowns — renderizados fora do topbar */}
+      {notificationDropdown}
+      {userDropdown}
+    </>
   );
 }

@@ -128,17 +128,12 @@ ALTER TABLE history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view all users" ON users
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert themselves" ON users
+CREATE POLICY "Admins can insert users" ON users
   FOR INSERT WITH CHECK (
-    auth.uid() = id
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'sudo'))
   );
 
-CREATE POLICY "Users can update themselves" ON users
-  FOR UPDATE USING (
-    auth.uid() = id
-  );
-
-CREATE POLICY "Admins can update any user" ON users
+CREATE POLICY "Admins can update users" ON users
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'sudo'))
   );
@@ -212,3 +207,4 @@ ALTER TABLE users ADD CONSTRAINT check_galiza_email
 -- Add check constraint to invites table
 ALTER TABLE invites ADD CONSTRAINT check_galiza_email_invite 
   CHECK (validate_galiza_email(email));
+te

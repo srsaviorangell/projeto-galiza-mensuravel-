@@ -11,6 +11,8 @@ import Login from './pages/Login';
 import FirstAccess from './pages/FirstAccess';
 import InvitePage from './pages/InvitePage';
 import Admin from './pages/Admin';
+import KPIs from './pages/KPIs';
+import PainelParametros from './pages/PainelParametros';
 import { AppProvider, AppContext, useApp } from './context/AuthContext';
 import './app.css';
 
@@ -38,9 +40,12 @@ function ProtectedLayout() {
     return <Navigate to="/login" replace />;
   }
   
+  // Comentado para evitar loops em ferramentas de responsividade
+  /*
   if (isFirstAccess) {
     return <Navigate to="/first-access" replace />;
   }
+  */
   
   return (
     <div className="app-container">
@@ -60,15 +65,20 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/first-access" element={<FirstAccess />} />
           <Route path="/invite/:token" element={<InvitePage />} />
+          
+          {/* Redireciona /dashboard para / para evitar erros de rota */}
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/projetos" element={<Projetos />} />
             <Route path="/projetos/:id" element={<ProjetoDetalhes />} />
             <Route path="/tarefas" element={<Tarefas />} />
             <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/colaboradores" element={<Colaboradores />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/kpis" element={<KPIs />} />
+            <Route path="/parametros" element={<PainelParametros />} />
           </Route>
         </Routes>
       </Router>

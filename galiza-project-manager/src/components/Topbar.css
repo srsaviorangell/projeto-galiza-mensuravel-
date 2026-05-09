@@ -45,18 +45,17 @@
 }
 
 .img-logo-full {
-  height: 60px;
+  height: 48px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 0 1.5px var(--accent-orange)) drop-shadow(0 4px 15px rgba(255, 97, 48, 0.3));
   transition: var(--transition);
-  transform: scale(3.5) translateX(15px);
   transform-origin: left center;
 }
 
 .img-logo-full:hover {
   filter: drop-shadow(0 0 2px var(--accent-orange)) drop-shadow(0 4px 25px rgba(255, 97, 48, 0.6));
-  transform: scale(3.6) translateX(15px);
+  transform: scale(1.05);
 }
 
 /* ─── Centered Navigation ─── */
@@ -396,41 +395,41 @@
   color: var(--danger);
 }
 
-/* ─── Mobile Navigation ─── */
-.mobile-menu-btn {
-  display: none;
-}
-
-.mobile-nav-overlay {
+/* ─── Portal Overlay (dropdowns renderizados fora do topbar) ─── */
+.portal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 7, 12, 0.8);
-  backdrop-filter: blur(8px);
-  z-index: 300;
-  animation: overlayIn 0.3s ease-out;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  animation: overlayIn 0.2s ease-out;
 }
 
-.mobile-nav {
-  position: absolute;
-  top: 72px;
-  right: 0;
-  width: 280px;
-  background: var(--bg-surface);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
-  border-left: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-radius: 0 0 0 var(--radius-lg);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: -8px 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+.portal-dropdown {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  z-index: 9999;
+  animation: dropdownReveal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mobile-nav .nav-link {
-  padding: 0.8rem 1rem;
-  border-radius: var(--radius-sm);
+.portal-dropdown.notification-dropdown {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+}
+
+.portal-dropdown.user-dropdown {
+  width: 260px;
+  max-width: calc(100vw - 32px);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Mobile Bottom Navigation ─── */
+.mobile-bottom-nav {
+  display: none; /* Escondido no desktop */
 }
 
 @media (max-width: 930px) {
@@ -443,9 +442,10 @@
   }
   
   .topbar-nav { display: none; }
-  .mobile-menu-btn { display: flex; }
-  
-  .bottom-nav-actions {
+
+  /* Bottom Nav aparece só no mobile */
+  .mobile-bottom-nav {
+    display: flex;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -455,39 +455,72 @@
     backdrop-filter: blur(48px) saturate(200%);
     -webkit-backdrop-filter: blur(48px) saturate(200%);
     border-top: 1px solid var(--border-strong);
-    box-shadow: 0 -8px 32px var(--shadow-md);
-    display: flex;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
     justify-content: space-around;
     align-items: center;
-    z-index: 500;
+    padding: 0 0.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px); /* iPhone notch */
   }
-  
-  .notification-dropdown, .user-dropdown {
-    top: auto;
-    bottom: calc(100% + 16px);
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90vw;
-    animation: dropdownRevealMobile 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
 
-@keyframes dropdownRevealMobile {
-  from { opacity: 0; transform: translate(-50%, 8px) scale(0.97); }
-  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    min-width: 48px;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--accent-orange);
+  }
+
+  .bottom-nav-item.active svg {
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+  }
+
+  /* Dropdown portal ajuste mobile */
+  .portal-dropdown {
+    top: auto;
+    bottom: 80px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .portal-dropdown.notification-dropdown,
+  .portal-dropdown.user-dropdown {
+    width: auto;
+    max-width: none;
+  }
+
+  /* Espaço extra no conteúdo para não ficar atrás do bottom nav */
+  .main-content {
+    padding-bottom: 80px;
+  }
 }
 
 @media (max-width: 600px) {
   .topbar {
     padding: 0 1rem;
-    height: 64px;
+    height: 56px;
   }
 }
+
 /* ─── Light Mode Overrides for Dropdowns (Efeito Negro) ─── */
 [data-theme="light"] .notification-dropdown,
 [data-theme="light"] .user-dropdown,
-[data-theme="light"] .mobile-nav {
+[data-theme="light"] .mobile-bottom-nav {
   background: rgba(10, 12, 16, 0.92);
   backdrop-filter: blur(40px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -509,7 +542,7 @@
 }
 
 [data-theme="light"] .user-dropdown .user-role {
-  color: #E0C9DD; /* Lilac looks great on dark */
+  color: #E0C9DD;
 }
 
 [data-theme="light"] .notification-item:hover,
@@ -526,4 +559,12 @@
 
 [data-theme="light"] .notification-icon {
   background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .bottom-nav-item {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="light"] .bottom-nav-item.active {
+  color: var(--accent-orange);
 }

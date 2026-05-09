@@ -192,6 +192,53 @@ export default function Dashboard() {
     return { total, increase, percent: percent.toFixed(1) };
   }, [chartData, chartContext, targetExecutions, timeRange]);
 
+  // General activities (no specific context)
+  const allExecutions = useMemo(() => {
+    return tasks.flatMap(t => (t.executions || []).map(e => ({
+      ...e,
+      taskTitle: t.title,
+      taskMeasurement: t.measurementType || 'un'
+    })));
+  }, [tasks]);
+
+  const chartDataAll = useMemo(() => {
+    const data = [];
+    const today = new Date();
+    let days = 7;
+    if (timeRange === '7 Dias') days = 7;
+    else if (timeRange === '15 Dias') days = 15;
+    else if (timeRange === 'Mês') days = 30;
+    else if (timeRange === 'Trimestre') days = 90;
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateString = d.toISOString().split('T')[0];
+      const sum = allExecutions.filter(a => a.data === dateString).length;
+      const [year, month, day] = dateString.split('-');
+      const label = days > 90 ? `${month}/${year}` : `${day}/${month}`;
+      data.push({ date: label, producao: sum });
+    }
+    return data;
+  }, [allExecutions, timeRange]);
+
+  const chartStatsAll = useMemo(() => {
+    const total = chartDataAll.reduce((acc, cur) => acc + cur.producao, 0);
+    // previous period total
+    const days = chartDataAll.length;
+    const now = new Date();
+    const prevStart = new Date(now);
+    prevStart.setDate(now.getDate() - days * 2);
+    const prevEnd = new Date(now);
+    prevEnd.setDate(now.getDate() - days);
+    const prevTotal = allExecutions.filter(e => {
+      const eDate = new Date(e.data);
+      return eDate >= prevStart && eDate < prevEnd;
+    }).length;
+    const increase = total - prevTotal;
+    const percent = prevTotal === 0 ? (total > 0 ? 100 : 0) : ((increase / prevTotal) * 100);
+    return { total, increase, percent: percent.toFixed(1) };
+  }, [chartDataAll, allExecutions]);
+
   const dashboardStats = useMemo(() => {
     const now = new Date();
     const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -349,6 +396,56 @@ export default function Dashboard() {
       </div>
 
       {/* ===== Main Content Grid ===== */}
+        {/* ===== General Activities Chart ===== */}
+        <div className="dashboard-card general-chart-card" style={{ backgroundColor: '#ff4d4f' }}>
+          <div className="card-header">
+            <div className="card-title">
+              <TrendingUp size={18} />
+              <h3>Atividades Gerais</h3>
+            </div>
+            <select 
+              className="time-range-select"
+              value={timeRange}
+              onChange={e => setTimeRange(e.target.value as any)}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '12px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="7 Dias">7 Dias</option>
+              <option value="15 Dias">15 Dias</option>
+              <option value="Mês">Mês</option>
+              <option value="Trimestre">Trimestre</option>
+            </select>
+          </div>
+          <div className="progress-chart">
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartDataAll}>
+                <defs>
+                  <linearGradient id="colorBlueGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.6}/>
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" hide />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <Tooltip />
+                <Area type="monotone" dataKey="producao" stroke="#3b82f6" fill="url(#colorBlueGlow)" />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="chart-stats">
+              <span className="total">{chartStatsAll.total}</span>
+              <span className={`increase ${chartStatsAll.increase >= 0 ? 'positive' : 'negative'}`}>{chartStatsAll.increase >= 0 ? '+' : ''}{chartStatsAll.increase}</span>
+              <span className={`percent ${chartStatsAll.increase >= 0 ? 'positive' : 'negative'}`}><ArrowUpRight size={16} /> {Math.abs(Number(chartStatsAll.percent))}%</span>
+            </div>
+          </div>
+        </div>
       <div className="dashboard-main">
         {/* ===== Project Progress Chart ===== */}
         <div className="dashboard-card progress-chart-card">
@@ -473,118 +570,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ===== Priority Breakdown ===== */}
-        <div className="dashboard-card priority-breakdown-card">
-          <div className="card-header">
-            <div className="card-title">
-              <Target size={18} />
-              <h3>Distribuição por Prioridade</h3>
-            </div>
-          </div>
-          <div className="priority-breakdown">
-            <div className="priority-item priority-urgent">
-              <div className="priority-header">
-                <span className="priority-name">Urgente</span>
-                <span className="priority-count">{dashboardStats.tasksByPriority.urgent}</span>
-              </div>
-              <div className="priority-bar">
-                <div 
-                  className="priority-fill"
-                  style={{ width: `${(dashboardStats.tasksByPriority.urgent / (tasks.length || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="priority-item priority-high">
-              <div className="priority-header">
-                <span className="priority-name">Alta</span>
-                <span className="priority-count">{dashboardStats.tasksByPriority.high}</span>
-              </div>
-              <div className="priority-bar">
-                <div 
-                  className="priority-fill"
-                  style={{ width: `${(dashboardStats.tasksByPriority.high / (tasks.length || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="priority-item priority-medium">
-              <div className="priority-header">
-                <span className="priority-name">Média</span>
-                <span className="priority-count">{dashboardStats.tasksByPriority.medium}</span>
-              </div>
-              <div className="priority-bar">
-                <div 
-                  className="priority-fill"
-                  style={{ width: `${(dashboardStats.tasksByPriority.medium / (tasks.length || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="priority-item priority-low">
-              <div className="priority-header">
-                <span className="priority-name">Baixa</span>
-                <span className="priority-count">{dashboardStats.tasksByPriority.low}</span>
-              </div>
-              <div className="priority-bar">
-                <div 
-                  className="priority-fill"
-                  style={{ width: `${(dashboardStats.tasksByPriority.low / (tasks.length || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        
+              
 
-        {/* ===== Recent Projects ===== */}
-        <div className="dashboard-card recent-projects-card">
-          <div className="card-header">
-            <div className="card-title">
-              <FolderKanban size={18} />
-              <h3>Projetos em Destaque</h3>
-            </div>
-            <button className="card-action" onClick={() => navigate('/projetos')}>
-              Ver todos <ArrowUpRight size={14} />
-            </button>
-          </div>
-          <div className="recent-projects-grid">
-            {recentProjects.length === 0 ? (
-              <div className="empty-projects">
-                <FolderKanban size={32} />
-                <p>Nenhum projeto</p>
-              </div>
-            ) : (
-              recentProjects.map((proj) => {
-                const statusClass = proj.progress === 100 ? 'concluido' : 
-                  proj.endDate && new Date(proj.endDate.split('/').reverse().join('-')) < new Date() 
-                  ? 'atrasado' : 'em-andamento';
-                const statusLabel = proj.progress === 100 ? 'Concluído' : 
-                  proj.endDate && new Date(proj.endDate.split('/').reverse().join('-')) < new Date() 
-                  ? 'Atrasado' : 'Em andamento';
-                return (
-                  <div 
-                    key={proj.id} 
-                    className="project-mini-card"
-                    onClick={() => navigate(`/projetos/${proj.id}`)}
-                  >
-                    <div className="project-mini-header">
-                      <h4>{proj.name}</h4>
-                      <span className={`project-mini-status ${statusClass}`}>
-                        {statusLabel}
-                      </span>
-                    </div>
-                    <div className="project-mini-progress">
-                      <div className="mini-progress-bar">
-                        <div 
-                          className="mini-progress-fill"
-                          style={{ width: `${proj.progress}%` }}
-                        />
-                      </div>
-                      <span className="mini-progress-text">{proj.progress}%</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+        
+        
 
       </div>
 
@@ -602,7 +592,7 @@ export default function Dashboard() {
                 <span className="rcc-label">{chartContext.type === 'collab' ? 'Colaborador' : 'Projeto'}</span>
                 <div className="rcc-value-col">
                   <span className="rcc-main-value">{chartContext.name}</span>
-                  <span className="rcc-sub-value">Produção Registrada (Atividades)</span>
+                  <span className="rcc-sub-value">Atividades</span>
                 </div>
               </div>
             </div>
@@ -675,7 +665,7 @@ export default function Dashboard() {
             </div>
 
             <div className="rcc-footer">
-              <span className="rcc-footer-label">Total Produzido</span>
+              <span className="rcc-footer-label">Total Atividades</span>
               <div className="rcc-footer-stats">
                 <div className="rcc-big-number">
                   {chartStats.total}

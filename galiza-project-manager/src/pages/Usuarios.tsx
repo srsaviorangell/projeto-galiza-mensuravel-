@@ -261,24 +261,6 @@ export default function Usuarios() {
             <span className="stat-label">Total de Usuários</span>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon-wrapper admin" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
-            <Shield size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-value">{users.filter(u => u.role === 'admin' || u.role === 'sudo').length}</span>
-            <span className="stat-label">Administradores</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon-wrapper sudo" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
-            <Crown size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-value">{users.filter(u => u.role === 'sudo').length}</span>
-            <span className="stat-label">Sudo</span>
-          </div>
-        </div>
       </div>
 
       <div className="usuarios-toolbar">

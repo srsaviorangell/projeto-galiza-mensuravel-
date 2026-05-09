@@ -271,8 +271,6 @@ export default function Projetos() {
   const filterOptions: { label: string; value: FilterStatus; color: string }[] = [
     { label: 'Todos', value: 'all', color: 'var(--text-secondary)' },
     { label: 'Em andamento', value: 'Em andamento', color: 'var(--accent)' },
-    { label: 'Concluídos', value: 'Concluído', color: 'var(--success)' },
-    { label: 'Atrasados', value: 'Atrasado', color: 'var(--danger)' },
   ];
 
   return (

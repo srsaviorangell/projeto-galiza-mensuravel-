@@ -11,17 +11,33 @@ export function useApp() {
 }
 
 export function AppProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirstAccess, setIsFirstAccess] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        return user.email === 'sudo@galizanet.com.br' || user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'sudo';
+      } catch { return false; }
+    }
+    return false;
+  });
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
 
   const loadUserProfile = async (sessionUser) => {
-    // Garante acesso pelo email ANTES de qualquer query (evita problemas de RLS/ID)
+    if (!sessionUser) return;
     const isSudoEmail = sessionUser.email === 'sudo@galizanet.com.br';
 
     try {
@@ -38,18 +54,19 @@ export function AppProvider({ children }) {
       }
 
       if (userData) {
-        // Força role sudo para o email principal de sudo
         if (isSudoEmail && userData.role !== 'sudo') {
           await supabase.from('users').update({ role: 'sudo', id: sessionUser.id }).eq('email', sessionUser.email);
           userData.role = 'sudo';
         }
-        setIsFirstAccess(userData.first_access === true);
-        setIsAdmin(isSudoEmail || userData.role?.toLowerCase() === 'admin' || userData.role?.toLowerCase() === 'sudo');
+        
+        setIsFirstAccess(false);
+        const isUserAdmin = isSudoEmail || userData.role?.toLowerCase() === 'admin' || userData.role?.toLowerCase() === 'sudo';
+        setIsAdmin(isUserAdmin);
+        
         const fullUser = { ...sessionUser, ...userData, role: isSudoEmail ? 'sudo' : userData.role };
         setCurrentUser(fullUser);
         localStorage.setItem('currentUser', JSON.stringify(fullUser));
       } else {
-        // Nenhum registro encontrado — cria novo
         const newRole = isSudoEmail ? 'sudo' : 'user';
         const newUser = {
           id: sessionUser.id,
@@ -69,58 +86,40 @@ export function AppProvider({ children }) {
       }
     } catch (e) {
       console.error('Erro ao carregar perfil:', e);
-      // Fallback garantido: usa o email para definir permissões
       setIsAdmin(isSudoEmail);
-      setCurrentUser({ ...sessionUser, role: isSudoEmail ? 'sudo' : 'user' });
+      setCurrentUser(prev => prev || { ...sessionUser, role: isSudoEmail ? 'sudo' : 'user' });
     }
   };
 
-const fetchFromSupabase = async (table) => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    return res.json();
+  const fetchFromSupabase = async (table) => {
+    try {
+      // Adicionado order=id.desc e limit=4000 para garantir que os dados mais recentes do stress test apareçam
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&order=id.desc&limit=4000`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!res.ok) return [];
+      return res.json();
+    } catch {
+      return [];
+    }
   };
 
-  const mapTaskToCamelCase = (t) => ({
-    ...t,
-    projectId: t.project_id,
-    assigneeId: t.assignee_id,
-    dueDate: t.due_date,
-    measurementTarget: t.measurement_target,
-    measurementCurrent: t.measurement_current,
-    measurementType: t.measurement_type,
-    daysLate: t.days_late
-  });
-
   useEffect(() => {
-    // Timeout de segurança: garante que o loading nunca trave
+    let isMounted = true;
     const safetyTimeout = setTimeout(() => {
-      setIsLoading(false);
-    }, 8000);
+      if (isMounted) setIsLoading(false);
+    }, 5000);
 
     const initialize = async () => {
       try {
-        const storedUser = localStorage.getItem('currentUser');
-        
-        if (storedUser) {
-          const user = JSON.parse(storedUser);
-          setCurrentUser(user);
-          setIsFirstAccess(user.first_access === true);
-          setIsAdmin(user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'sudo');
-        }
-
-        console.log('Carregando dados do banco...');
-
+        // Carrega dados iniciais em paralelo
         const [projectsData, tasksData, usersData] = await Promise.all([
-          fetchFromSupabase('projects').catch(() => []),
-          fetchFromSupabase('tasks').catch(() => []),
-          fetchFromSupabase('users').catch(() => [])
+          fetchFromSupabase('projects'),
+          fetchFromSupabase('tasks'),
+          fetchFromSupabase('users')
         ]);
 
-        console.log('Projects:', projectsData);
-        console.log('Tasks:', tasksData);
-        console.log('Users:', usersData);
+        if (!isMounted) return;
 
         const mapTaskToCamelCase = (t) => ({
           ...t,
@@ -130,7 +129,10 @@ const fetchFromSupabase = async (table) => {
           measurementTarget: t.measurement_target,
           measurementCurrent: t.measurement_current,
           measurementType: t.measurement_type,
-          daysLate: t.days_late
+          kpiEnabled: t.kpi_enabled,
+          kpiCode: t.kpi_code,
+          kpiCategory: t.kpi_category,
+          kpiParams: t.kpi_params
         });
 
         const mapProjectToCamelCase = (p) => ({
@@ -141,53 +143,42 @@ const fetchFromSupabase = async (table) => {
           tasksTotal: p.tasks_total
         });
 
-        // Garantir que sejam arrays antes de fazer map
         setProjects(Array.isArray(projectsData) ? projectsData.map(mapProjectToCamelCase) : []);
         setTasks(Array.isArray(tasksData) ? tasksData.map(mapTaskToCamelCase) : []);
         setUsers(Array.isArray(usersData) ? usersData : []);
       } catch (err) {
         console.error('Erro na inicialização:', err);
       } finally {
-        clearTimeout(safetyTimeout);
-        setIsLoading(false);
-      }
-    };
-
-initialize();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-
-      if (!session?.user) {
-        // Se não há sessão do Supabase, verificamos se existe um login manual no localStorage
-        const storedUser = localStorage.getItem('currentUser');
-        if (!storedUser) {
-          setCurrentUser(null);
-          setIsAdmin(false);
-          setIsFirstAccess(false);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      if (event === 'SIGNED_IN') {
-        setIsLoading(true);
-        try {
-          await loadUserProfile(session.user);
-          const { data: projectsData } = await supabase.from('projects').select('*');
-          const { data: tasksData } = await supabase.from('tasks').select('*');
-          const { data: usersData } = await supabase.from('users').select('*');
-
-          setProjects(projectsData ? projectsData.map(p => ({ ...p, startDate: p.start_date, endDate: p.end_date })) : []);
-          setTasks(tasksData ? tasksData.map(t => ({ ...t, projectId: t.project_id, assigneeId: t.assignee_id, dueDate: t.due_date, measurementTarget: t.measurement_target, measurementCurrent: t.measurement_current, measurementType: t.measurement_type })) : []);
-          setUsers(usersData || []);
-        } finally {
+        if (isMounted) {
+          clearTimeout(safetyTimeout);
           setIsLoading(false);
         }
       }
+    };
+
+    initialize();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      setSession(session);
+
+      if (!session?.user) {
+        if (!localStorage.getItem('currentUser')) {
+          setCurrentUser(null);
+          setIsAdmin(false);
+        }
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        await loadUserProfile(session.user);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const completeProfile = async (userData) => {
@@ -339,7 +330,9 @@ initialize();
   const mapTaskToSnakeCase = (t) => {
     const { 
       projectId, assigneeId, dueDate, measurementTarget, 
-      measurementCurrent, measurementType, daysLate, assignee, name, ...rest 
+      measurementCurrent, measurementType, daysLate, assignee, name,
+      kpiEnabled, kpiCode, kpiCategory, kpiParams,
+      ...rest 
     } = t;
     return {
       ...rest,
@@ -349,7 +342,11 @@ initialize();
       measurement_target: measurementTarget !== undefined ? measurementTarget : rest.measurement_target,
       measurement_current: measurementCurrent !== undefined ? measurementCurrent : rest.measurement_current,
       measurement_type: measurementType !== undefined ? measurementType : rest.measurement_type,
-      days_late: daysLate !== undefined ? daysLate : rest.days_late
+      days_late: daysLate !== undefined ? daysLate : rest.days_late,
+      kpi_enabled: kpiEnabled !== undefined ? kpiEnabled : rest.kpi_enabled,
+      kpi_code: kpiCode !== undefined ? kpiCode : rest.kpi_code,
+      kpi_category: kpiCategory !== undefined ? kpiCategory : rest.kpi_category,
+      kpi_params: kpiParams !== undefined ? kpiParams : rest.kpi_params
     };
   };
 
@@ -385,7 +382,11 @@ initialize();
         measurementTarget: t.measurement_target,
         measurementCurrent: t.measurement_current,
         measurementType: t.measurement_type,
-        daysLate: t.days_late
+        daysLate: t.days_late,
+        kpiEnabled: t.kpi_enabled,
+        kpiCode: t.kpi_code,
+        kpiCategory: t.kpi_category,
+        kpiParams: t.kpi_params
       });
 
       const mapProjectToCamelCase = (p) => ({
@@ -464,6 +465,7 @@ initialize();
   const addTask = async (task) => {
     try {
       const dbTask = mapTaskToSnakeCase(task);
+      console.log('DEBUG KPI - Criando tarefa:', dbTask);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
         method: 'POST',
         headers: {
@@ -474,7 +476,12 @@ initialize();
         },
         body: JSON.stringify(dbTask)
       });
-      if (!res.ok) throw new Error(await res.text() || 'Erro na API');
+      console.log('DEBUG KPI - Resposta status:', res.status, res.ok);
+      if (!res.ok) {
+        const errText = await res.text();
+        console.log('DEBUG KPI - Erro resposta:', errText);
+        throw new Error(errText || 'Erro na API');
+      }
       await refreshData();
       return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
@@ -483,6 +490,7 @@ initialize();
   const updateTask = async (id, updates) => {
     try {
       const dbUpdates = mapTaskToSnakeCase(updates);
+      console.log('DEBUG KPI - Enviando para Supabase:', dbUpdates);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
         method: 'PATCH',
         headers: {
@@ -575,6 +583,39 @@ initialize();
     }
   };
 
+  const addKpiCollection = async (data) => {
+    try {
+      const { taskId, kpiCode, kpiCategory, quantidade, dataColeta, parametros, valores, collaboratorId, observacao } = data;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/kpi_collections`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+          kpi_code: kpiCode,
+          kpi_category: kpiCategory,
+          quantidade: quantidade,
+          data_coleta: dataColeta,
+          parametros: parametros,
+          valores: valores,
+          collaborator_id: collaboratorId,
+          observacao: observacao
+        })
+      });
+      if (!res.ok) throw new Error(await res.text() || 'Erro ao salvar KPI collection');
+      const result = await res.json();
+      console.log('[KPI COLLECTION] Salvo com sucesso:', result);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Erro crítico ao salvar KPI collection:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     currentUser,
     session,
@@ -603,7 +644,8 @@ initialize();
     getAllAssignees,
     addHistory,
     getHistory,
-    deleteHistory
+    deleteHistory,
+    addKpiCollection
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

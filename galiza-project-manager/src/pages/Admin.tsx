@@ -201,6 +201,59 @@ export default function Admin() {
     return { total, increase, percent: percent.toFixed(1) };
   }, [chartData, chartContext, targetExecutions, timeRange]);
 
+  // === Global data (all activities) ===
+  const allExecutions = useMemo(() => {
+    return tasks.flatMap(t =>
+      (t.executions || []).map(e => ({
+        ...e,
+        taskTitle: t.title,
+        taskMeasurement: t.measurementType || 'un',
+        collaborator: users.find(u => u.id === e.colaboradorId)?.name ?? 'Desconhecido',
+        date: e.timestamp || e.data
+      }))
+    );
+  }, [tasks, users]);
+
+  const chartDataAll = useMemo(() => {
+    const data = [];
+    const today = new Date();
+    let days = 7;
+    if (timeRange === '3 Dias') days = 3;
+    else if (timeRange === 'Semana') days = 7;
+    else if (timeRange === '15 Dias') days = 15;
+    else if (timeRange === 'Mês') days = 30;
+    else if (timeRange === 'Trimestre') days = 90;
+    else if (timeRange === 'Semestre') days = 180;
+    else if (timeRange === 'Ano') days = 365;
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const iso = d.toISOString().split('T')[0];
+      const sum = allExecutions.filter(a => a.date?.startsWith(iso)).length;
+      const label = days > 90 ? `${d.getMonth() + 1}/${d.getFullYear()}` : `${d.getDate()}/${d.getMonth() + 1}`;
+      data.push({ date: label, producao: sum });
+    }
+    return data;
+  }, [allExecutions, timeRange]);
+
+  const chartStatsAll = useMemo(() => {
+    const total = chartDataAll.reduce((a, c) => a + c.producao, 0);
+    const days = chartDataAll.length;
+    const now = new Date();
+    const prevStart = new Date(now);
+    prevStart.setDate(now.getDate() - days * 2);
+    const prevEnd = new Date(now);
+    prevEnd.setDate(now.getDate() - days);
+    const prevTotal = allExecutions.filter(e => {
+      const ed = new Date(e.date);
+      return ed >= prevStart && ed < prevEnd;
+    }).length;
+    const increase = total - prevTotal;
+    const percent = prevTotal === 0 ? (total > 0 ? 100 : 0) : (increase / prevTotal) * 100;
+    return { total, increase, percent: percent.toFixed(1) };
+  }, [chartDataAll, allExecutions]);
+
   const overallProgress = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter(t => t.status === 'Concluída').length;
@@ -583,7 +636,7 @@ export default function Admin() {
     <div className="dashboard-container animate-fadeIn">
       <div className="dashboard-header">
         <div>
-          <h1>Painel Administrativo</h1>
+          <h1>Painel</h1>
           <p className="dashboard-subtitle">Visão geral e relatórios do sistema</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -634,13 +687,27 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="stat-card clickable-card" onClick={() => setActiveStatModal('urgent')}>
-          <div className="stat-icon-wrapper urgent">
-            <AlertTriangle size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-value">{urgentTasks}</span>
-            <span className="stat-label">Urgentes</span>
+        <div className="stat-card clickable-card" style={{ backgroundColor: '#ff4d4f', cursor: 'pointer' }} onClick={() => setChartContext(null)}>
+          <div className="card-header" style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+            <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+              <TrendingUp size={18} color="white" />
+              <span style={{color:'white',fontWeight:'bold'}}>Atividades Gerais</span>
+            </div>
+            <ResponsiveContainer width="100%" height={60}>
+              <AreaChart data={chartDataAll}>
+                <defs>
+                  <linearGradient id="colorRedMini" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff8a80" stopOpacity={0.6}/>
+                    <stop offset="100%" stopColor="#ff4d4f" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="producao" stroke="#fff" fill="url(#colorRedMini)" />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{display:'flex', justifyContent:'space-between', color:'white', fontSize:'12px'}}>
+              <span>Total: {chartStatsAll.total}</span>
+              <span>{chartStatsAll.increase >= 0 ? '+' : ''}{chartStatsAll.increase} ({chartStatsAll.percent}%)</span>
+            </div>
           </div>
         </div>
       </div>
@@ -684,91 +751,7 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="admin-card tasks-by-collab-card">
-          <div className="card-header">
-            <Users size={20} />
-            <h3>Tarefas por Colaborador</h3>
-          </div>
-          <div className="bar-chart">
-            {tasksByCollaborator.map(collab => (
-              <div key={collab.id} className="bar-item">
-                <span className="bar-label">{collab.name?.split(' ')[0] || 'User'}</span>
-                <div className="bar-wrapper">
-                  <div className="bar-completed" style={{ width: `${(collab.completed / (collab.total || 1)) * 100}%` }} />
-                  <div className="bar-pending" style={{ width: `${((collab.inProgress + collab.todo) / (collab.total || 1)) * 100}%` }} />
-                </div>
-                <span className="bar-value">{collab.total}</span>
-              </div>
-            ))}
-          </div>
-          <div className="chart-legend">
-            <span className="legend-item"><span className="legend-dot completed"></span> Concluídas</span>
-            <span className="legend-item"><span className="legend-dot pending"></span> Pendentes</span>
-          </div>
-          <div className="kpi-row">
-            {tasksByCollaborator.slice(0, 3).map(collab => (
-              <div key={collab.id} className="mini-kpi-card">
-                <span className="mini-kpi-label">{collab.name?.split(' ')[0] || 'User'}</span>
-                <span className="mini-kpi-value">{collab.executionsCount || 0} exec</span>
-                <span className="mini-kpi-sub">{collab.totalProduced || 0} total</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="admin-card projects-status-card">
-          <div className="card-header">
-            <FolderKanban size={20} />
-            <h3>Status dos Projetos</h3>
-          </div>
-          <div className="projects-list">
-            {projectStatus.map(proj => (
-              <div key={proj.id} className={`project-item clickable-card ${proj.isLate ? 'late' : ''}`} onClick={() => setChartContext({ type: 'project', id: proj.id, name: proj.name })}>
-                <div className="project-info">
-                  <span className="project-name">{proj.name}</span>
-                  <span className="project-meta">
-                    {proj.completed}/{proj.total} tarefas
-                    {proj.daysLeft !== null && ` • ${proj.daysLeft}d restantes`}
-                  </span>
-                </div>
-                <div className="project-progress">
-                  <div className="progress-bar small">
-                    <div className="progress-fill" style={{ 
-                      width: `${proj.progress || 0}%`,
-                      backgroundColor: proj.progress === 100 ? 'var(--success)' : proj.isLate ? 'var(--danger)' : 'var(--accent)'
-                    }} />
-                  </div>
-                  <span className={`status-badge ${proj.progress === 100 ? 'completed' : proj.isLate ? 'late' : 'active'}`}>
-                    {proj.progress === 100 ? 'Concluído' : proj.isLate ? 'Atrasado' : `${proj.progress || 0}%`}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="admin-card unassigned-card">
-          <div className="card-header">
-            <User size={20} />
-            <h3>Tarefas Sem Responsável</h3>
-            <span className="badge-count">{unassignedTasks.length}</span>
-          </div>
-          <div className="unassigned-list">
-            {unassignedTasks.length === 0 ? (
-              <p className="empty-text">Todas as tarefas estão atribuídas</p>
-            ) : (
-              unassignedTasks.map(task => (
-                <div key={task.id} className="unassigned-item">
-                  <div className="task-info">
-                    <span className="task-title">{task.title}</span>
-                    <span className="task-project">{projects.find(p => p.id === task.projectId)?.name}</span>
-                  </div>
-                  <span className="priority-badge">{task.priority || 'Média'}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        
       </div>
 
       {showReportModal && createPortal(

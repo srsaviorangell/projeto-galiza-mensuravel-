@@ -13,6 +13,8 @@ import './Colaboradores.css';
 export default function Colaboradores() {
   const { tasks, projects, users, isAdmin } = useContext(AppContext);
   const [selectedCollab, setSelectedCollab] = useState<any>(null);
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'execution' | 'creation' | 'completion'>('all');
 
   // Bloqueio de Segurança
   if (!isAdmin) {
@@ -31,15 +33,51 @@ export default function Colaboradores() {
     );
   }
 
-  // Agrega todas as execuções de todas as tarefas em uma única timeline cronológica
+  // Agrega todas as atividades (criações, execuções e conclusões)
   const allActivities = useMemo(() => {
     const activities: any[] = [];
     
     tasks.forEach(task => {
+      // Criação da tarefa
+      if (task.created_at) {
+        activities.push({
+          id: 'create-' + task.id,
+          type: 'creation',
+          taskTitle: task.title || task.name,
+          projectId: task.projectId,
+          projectName: projects.find(p => p.id === task.projectId)?.name || 'Tarefa Avulsa',
+          measurementType: task.measurementType,
+          quantidade: 1,
+          data: task.created_at.split('T')[0],
+          timestamp: task.created_at,
+          colaboradorId: task.assigneeId || null,
+          description: 'Tarefa criada'
+        });
+      }
+
+      // Conclusão da tarefa
+      if (task.completedAt) {
+        activities.push({
+          id: 'complete-' + task.id,
+          type: 'completion',
+          taskTitle: task.title || task.name,
+          projectId: task.projectId,
+          projectName: projects.find(p => p.id === task.projectId)?.name || 'Tarefa Avulsa',
+          measurementType: task.measurementType,
+          quantidade: 1,
+          data: task.completedAt.split('T')[0],
+          timestamp: task.completedAt,
+          colaboradorId: task.assigneeId || null,
+          description: 'Tarefa concluída'
+        });
+      }
+      
+      // Execuções
       if (task.executions && Array.isArray(task.executions)) {
         task.executions.forEach(exec => {
           activities.push({
             ...exec,
+            type: 'execution',
             taskTitle: task.title || task.name,
             projectId: task.projectId,
             projectName: projects.find(p => p.id === task.projectId)?.name || 'Tarefa Avulsa',
@@ -49,13 +87,31 @@ export default function Colaboradores() {
       }
     });
 
-    // Ordena por data (mais recente primeiro)
     return activities.sort((a, b) => {
       const dateA = new Date(a.timestamp || a.data).getTime();
       const dateB = new Date(b.timestamp || b.data).getTime();
       return dateB - dateA;
     });
   }, [tasks, projects]);
+
+  // Atividades filtradas
+  const filteredActivities = useMemo(() => {
+    let filtered = allActivities;
+    
+    if (dateFilter === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      filtered = filtered.filter(a => a.data === today);
+    } else if (dateFilter === 'week') {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(a => new Date(a.timestamp || a.data) >= weekAgo);
+    }
+
+    if (activityFilter !== 'all') {
+      filtered = filtered.filter(a => a.type === activityFilter);
+    }
+
+    return filtered;
+  }, [allActivities, dateFilter, activityFilter]);
 
   const openInMaps = (lat: number, lng: number) => {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
@@ -91,19 +147,56 @@ export default function Colaboradores() {
     <div className="dashboard-container animate-fadeIn">
       <div className="dashboard-header">
         <div>
-          <h1>Monitoramento de Equipe</h1>
+          <h1>Equipe</h1>
           <p className="dashboard-subtitle">Acompanhe em tempo real os lançamentos e localizações da equipe de campo.</p>
         </div>
-        <div className="dashboard-date">
-          <Calendar size={16} />
-          <span>
-             {new Date().toLocaleDateString('pt-BR', { 
-               weekday: 'long', 
-               day: 'numeric', 
-               month: 'long',
-               year: 'numeric'
-             })}
-          </span>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <select 
+            value={activityFilter}
+            onChange={(e) => setActivityFilter(e.target.value as any)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="all">Todas</option>
+            <option value="creation">Criações</option>
+            <option value="execution">Execuções</option>
+            <option value="completion">Conclusões</option>
+          </select>
+          <select 
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as any)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="today">Hoje</option>
+            <option value="week">Semana</option>
+            <option value="all">Tudo</option>
+          </select>
+          <div className="dashboard-date">
+            <Calendar size={16} />
+            <span>
+               {new Date().toLocaleDateString('pt-BR', { 
+                 weekday: 'long', 
+                 day: 'numeric', 
+                 month: 'long',
+                 year: 'numeric'
+               })}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -116,13 +209,13 @@ export default function Colaboradores() {
           </div>
 
           <div className="timeline">
-            {allActivities.length === 0 ? (
+            {filteredActivities.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                  <Database size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
                  <p>Nenhuma atividade registrada no sistema ainda.</p>
               </div>
             ) : (
-              allActivities.map((activity, idx) => {
+              filteredActivities.map((activity, idx) => {
                 const collab = users.find(u => String(u.id) === String(activity.colaboradorId));
                 return (
                   <div key={activity.id || idx} className="timeline-item">

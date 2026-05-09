@@ -243,6 +243,7 @@
     rgba(236, 72, 153, 0.04) 0%,
     transparent 60%
   );
+ 
   opacity: 0;
   transition: opacity 0.4s;
   pointer-events: none;
@@ -1064,4 +1065,368 @@
 
 .rtc-alert-slot {
   min-height: 20px;
+}
+/* ─── Modern Chrome Style Tabs ─── */
+.chrome-tabs-container {
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 12px 0 12px;
+  background: #1a1c1e; /* Chrome dark theme background */
+  border-bottom: 1px solid var(--border);
+  gap: 0; 
+  position: relative;
+  z-index: 10;
+  height: 44px;
+}
+
+.chrome-tab {
+  position: relative;
+  height: 34px;
+  flex: 1;
+  max-width: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0 12px;
+  z-index: 1;
+}
+
+/* Separator line for inactive tabs */
+.chrome-tab:not(.active):not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 25%;
+  height: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: opacity 0.2s;
+}
+
+.chrome-tab.active::after, 
+.chrome-tab:hover::after,
+.chrome-tab.active + .chrome-tab::after {
+  opacity: 0;
+}
+
+.tab-background-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tab-background-svg svg {
+  width: 100%; height: 100%;
+}
+
+.tab-background-svg path {
+  fill: transparent;
+  transition: fill 0.2s;
+}
+
+/* Only active or hover gets the shape pre-filled */
+.chrome-tab.active .tab-background-svg path {
+  fill: var(--bg-card); /* Blends with modal content */
+}
+
+.chrome-tab:hover:not(.active) .tab-background-svg path {
+  fill: rgba(255, 255, 255, 0.05);
+}
+
+.tab-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.chrome-tab.active .tab-content {
+  color: #fff;
+}
+
+.close-tab-icon {
+  margin-left: auto;
+  opacity: 0;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.chrome-tab:hover .close-tab-icon {
+  opacity: 0.6;
+}
+
+.close-tab-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1 !important;
+}
+
+.chrome-plus-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 8px;
+  margin-bottom: 6px;
+  transition: all 0.2s;
+}
+
+.chrome-plus-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.chrome-close-modal {
+  margin-left: auto;
+  margin-bottom: 6px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 8px;
+  transition: color 0.2s;
+}
+
+.chrome-close-modal:hover {
+  color: #ef4444;
+}
+
+/* ─── KPI Tags in Cards ─── */
+.rtc-card-top-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.kpi-tag-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 100, 0, 0.15);
+  border: 1px solid rgba(255, 100, 0, 0.4);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 10px rgba(255, 100, 0, 0.1);
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s infinite ease-in-out;
+}
+
+@keyframes pulse-subtle {
+  0% { box-shadow: 0 0 0 0 rgba(255, 100, 0, 0.2); }
+  50% { box-shadow: 0 0 12px 2px rgba(255, 100, 0, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 100, 0, 0.2); }
+}
+
+/* ─── KPI Multi-Manager (Carousel) ─── */
+.kpi-manager-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0.5rem;
+}
+
+.kpi-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kpi-header-titles h4 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.kpi-header-titles p {
+  margin: 4px 0 0 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.btn-add-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px var(--accent-subtle);
+}
+
+.btn-add-kpi-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--accent-subtle);
+}
+
+.kpis-carousel-wrapper {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.kpis-carousel-track {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 10px 5px 20px 5px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.kpis-carousel-track::-webkit-scrollbar {
+  height: 4px;
+}
+
+.kpis-carousel-track::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 10px;
+}
+
+.kpi-config-card {
+  flex: 0 0 280px; /* Width of each KPI card */
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  position: relative;
+  transition: all 0.3s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 600px) {
+  .kpi-config-card {
+    flex: 0 0 100%; /* Carousel shows 1 card on mobile */
+  }
+}
+
+.kpi-config-card:hover {
+  border-color: var(--accent);
+  background: rgba(255, 100, 0, 0.05);
+  transform: translateY(-4px);
+}
+
+.remove-kpi-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rtc-btn-load-more {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rtc-btn-load-more:hover {
+  background: rgba(255, 100, 0, 0.05);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.rtc-btn-load-more:active {
+  transform: translateY(0);
+}
+
+.remove-kpi-btn:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.kpi-card-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.mini-field label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.mini-field input {
+  width: 100%;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #fff;
+}
+
+.kpi-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  border: 2px dashed rgba(255,255,255,0.1);
 }

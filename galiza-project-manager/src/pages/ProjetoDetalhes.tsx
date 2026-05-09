@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AppContext } from '../context/AuthContext';
-import { ArrowLeft, Edit2, Trash2, TrendingUp, CheckCircle2, Clock, Target, Plus, X, History, AlertCircle, Link2, Image as ImageIcon, ExternalLink, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, TrendingUp, CheckCircle2, Clock, Target, Plus, X, History, AlertCircle, Link2, Image as ImageIcon, ExternalLink, User as UserIcon, Layout, BarChart3 } from 'lucide-react';
 import { CircularProgress } from '../components/CircularProgress';
 import './ProjetoDetalhes.css';
 
@@ -11,7 +11,7 @@ import './ProjetoDetalhes.css';
 export default function ProjetoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees } = useContext(AppContext);
+  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees, addKpiCollection } = useContext(AppContext);
   
   // States
   const [executionModalTask, setExecutionModalTask] = useState<any>(null);
@@ -26,12 +26,16 @@ export default function ProjetoDetalhes() {
   const [projectForm, setProjectForm] = useState({
      name: '', description: '', difficulty: 'Médio', startDate: '', endDate: ''
   });
-  const [executionForm, setExecutionForm] = useState({
+  const [executionForm, setExecutionForm] = useState<any>({
     colaboradorId: '',
     quantidade: '',
     data: new Date().toISOString().split('T')[0],
-    observacao: ''
+    observacao: '',
+    kpiValues: {}
   });
+
+  const [openTabs, setOpenTabs] = useState<string[]>(['Atividade']);
+  const [activeTab, setActiveTab] = useState('Atividade');
 
   const openHistoryModal = async (task: any) => {
     setHistoryModalTask(task);
@@ -45,7 +49,8 @@ export default function ProjetoDetalhes() {
       colaboradorId: task.assigneeId || '',
       data: new Date().toISOString().split('T')[0],
       quantidade: '',
-      observacao: ''
+      observacao: '',
+      kpiValues: {}
     });
   };
 
@@ -65,6 +70,10 @@ export default function ProjetoDetalhes() {
     measurementCurrent: 0,
     dueDate: '',
     assigneeId: '',
+    kpiEnabled: false,
+    kpiCode: '',
+    kpiCategory: '',
+    kpiParams: [],
     executions: []
   };
 
@@ -154,6 +163,7 @@ export default function ProjetoDetalhes() {
        quantidade: qty,
        data: executionForm.data,
        observacao: executionForm.observacao,
+       kpiValues: executionForm.kpiValues,
        location: location,
        timestamp: new Date().toISOString()
     }];
@@ -163,8 +173,23 @@ export default function ProjetoDetalhes() {
        executions: updatedExecutions,
        status: newCurrent >= (currentTask.measurementTarget || 1) ? 'Concluída' : 'A Fazer'
     });
+
+    if (currentTask.kpiEnabled && currentTask.kpiCode) {
+      await addKpiCollection({
+        taskId: currentTask.id,
+        kpiCode: currentTask.kpiCode,
+        kpiCategory: currentTask.kpiCategory,
+        quantidade: qty,
+        dataColeta: executionForm.data,
+        parametros: currentTask.kpiParams || [],
+        valores: executionForm.kpiValues || {},
+        collaboratorId: executionForm.colaboradorId,
+        observacao: executionForm.observacao
+      });
+    }
+
     setExecutionModalTask(null);
-    setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '' });
+    setExecutionForm({ colaboradorId: '', quantidade: '', data: new Date().toISOString().split('T')[0], observacao: '', kpiValues: {} });
   };
 
   const handleCreateTask = async () => {
@@ -200,6 +225,13 @@ export default function ProjetoDetalhes() {
     setTaskForm({ ...task });
     setEditingTask(task);
     setIsTaskModalOpen(true);
+    if (task.kpiCode || task.kpiEnabled || (task.kpiParams && task.kpiParams.length > 0)) {
+      setOpenTabs(['Atividade', 'KPI']);
+      setActiveTab('Atividade');
+    } else {
+      setOpenTabs(['Atividade']);
+      setActiveTab('Atividade');
+    }
   };
 
   const openProjectEdit = () => {
@@ -253,6 +285,8 @@ if(!linkForm.url || !linkForm.title) {
   const openCreateTask = () => {
     setTaskForm(emptyTask);
     setIsTaskModalOpen(true);
+    setOpenTabs(['Atividade']);
+    setActiveTab('Atividade');
   };
 
   return (
@@ -289,51 +323,9 @@ if(!linkForm.url || !linkForm.title) {
             </div>
             <div className="stat-icon check"><CheckCircle2 size={20} /></div>
           </div>
-          <div className="pd-stat-card">
-            <div className="stat-info">
-              <span className="stat-label">Dias Restantes</span>
-              <span className="stat-value" style={{ color: daysLeftStr === 'Atrasado' ? 'var(--danger)' : 'inherit' }}>{daysLeftStr}</span>
-            </div>
-            <div className="stat-icon clock"><Clock size={20} /></div>
-          </div>
-          <div className="pd-stat-card">
-            <div className="stat-info">
-              <span className="stat-label">Em Atraso</span>
-              <span className="stat-value" style={{ color: delayedTasks > 0 ? 'var(--danger)' : 'inherit' }}>{delayedTasks}</span>
-            </div>
-            <div className="stat-icon target"><AlertCircle size={20} /></div>
-          </div>
         </div>
 
-        {/* Info Row */}
-        <div className="pd-info-row">
-          <div className="pd-info-card">
-            <h4>Informações</h4>
-            <div className="pd-info-grid">
-              <div className="info-item">
-                <span>Período</span>
-                <span style={{ fontSize: '13px', fontWeight: 500, display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <Clock size={14} className="text-accent" />
-                  {project.startDate || 'N/A'} - {project.endDate || 'N/A'}
-                </span>
-              </div>
-              <div className="info-item">
-                <span>Dificuldade</span>
-                <span className={`info-badge ${project.difficulty?.toLowerCase()}`}>{project.difficulty || 'Média'}</span>
-              </div>
-            </div>
-          </div>
-          <div className="pd-info-card">
-            <h4>Colaboradores</h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>Gerencie quem tem acesso de execução à este projeto.</p>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <select style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15, 20, 30, 0.60)', color: 'var(--text-primary)' }}>
-                <option>Selecione um técnico...</option>
-              </select>
-              <button className="btn-primary" style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}><Plus size={18} /></button>
-            </div>
-          </div>
-        </div>
+        
 
         {/* Links & Attachments Row */}
         <div className="pd-attachments-row" style={{ marginTop: '1.5rem' }}>
@@ -585,6 +577,31 @@ if(!linkForm.url || !linkForm.title) {
                    <input type="date" value={executionForm.data} onChange={e => setExecutionForm({...executionForm, data: e.target.value})} />
                  </div>
                </div>
+
+               {executionModalTask.kpiParams && executionModalTask.kpiParams.length > 0 && (
+                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                   <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--accent)' }}>Preenchimento de Indicadores (KPI)</h4>
+                   {executionModalTask.kpiParams.map((param: string, idx: number) => (
+                     <div className="form-group" key={idx}>
+                       <label>{param}</label>
+                       <input 
+                         type="text" 
+                         value={executionForm.kpiValues?.[param] || ''} 
+                         onChange={e => {
+                           setExecutionForm({
+                             ...executionForm, 
+                             kpiValues: {
+                               ...(executionForm.kpiValues || {}),
+                               [param]: e.target.value
+                             }
+                           });
+                         }} 
+                         placeholder={`Digite o valor para ${param}`}
+                       />
+                     </div>
+                   ))}
+                 </div>
+               )}
             </div>
             <div className="modal-footer">
                <button className="btn-secondary" onClick={() => setExecutionModalTask(null)}>Cancelar</button>
@@ -735,42 +752,153 @@ if(!linkForm.url || !linkForm.title) {
       {isTaskModalOpen && createPortal(
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setIsTaskModalOpen(false); }}>
           <div className="modal-content" style={{ width: '500px' }}>
-            <div className="modal-header">
-              <h3>Cadastrar Nova Atividade</h3>
-              <button className="modal-close" onClick={() => setIsTaskModalOpen(false)}><X size={20}/></button>
+            <div className="chrome-tabs-container">
+              {openTabs.map(tab => (
+                <div 
+                  key={tab} 
+                  className={`chrome-tab ${activeTab === tab ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  <div className="tab-background-svg">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,100 L0,12 C0,5 5,0 12,0 L88,0 C95,0 100,5 100,12 L100,100 Z" /></svg>
+                  </div>
+                  <div className="tab-content">
+                    {tab === 'Atividade' ? <Layout size={12} /> : <BarChart3 size={12} />}
+                    <span>{tab}</span>
+                    {tab === 'KPI' && (
+                      <X 
+                        size={10} 
+                        className="close-tab-icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenTabs(['Atividade']);
+                          setActiveTab('Atividade');
+                          setTaskForm({...taskForm, kpiEnabled: false, kpiCode: ''});
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+              {!openTabs.includes('KPI') && (
+                <button className="chrome-plus-btn" onClick={() => { setOpenTabs(['Atividade', 'KPI']); setActiveTab('KPI'); }} title="Adicionar KPI"><Plus size={14} /></button>
+              )}
+              <button className="chrome-close-modal" onClick={() => setIsTaskModalOpen(false)}><X size={18} /></button>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Título da Atividade *</label>
-                <input type="text" placeholder="Ex: Passagem de cabos" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Responsável</label>
-                  <select value={taskForm.assigneeId} onChange={e => setTaskForm({...taskForm, assigneeId: e.target.value})}>
-                    <option value="">Não atribuído</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Prazo</label>
-                  <input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({...taskForm, dueDate: e.target.value})} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Meta (Quantidade)</label>
-                  <input type="number" value={taskForm.measurementTarget} onChange={e => setTaskForm({...taskForm, measurementTarget: Number(e.target.value)})} />
-                </div>
-                <div className="form-group">
-                  <label>Unidade (Ex: Metros)</label>
-                  <input type="text" value={taskForm.measurementType} onChange={e => setTaskForm({...taskForm, measurementType: e.target.value})} />
-                </div>
+
+            <div className="modal-header" style={{ paddingTop: '0.5rem', borderBottom: 'none' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px' }}>
+                  {activeTab === 'KPI' ? 'Configuração de KPI e Dados' : (editingTask ? 'Editar Atividade' : 'Nova Atividade')}
+                </h3>
+                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                  {activeTab === 'KPI' ? 'Vincule regras de coleta e exija parâmetros na execução.' : 'Defina os detalhes fundamentais da tarefa do projeto.'}
+                </p>
               </div>
             </div>
-            <div className="modal-footer">
+
+            <div className="modal-body" style={{ minHeight: '340px' }}>
+              {activeTab === 'Atividade' ? (
+                <div className="animate-fadeIn">
+                  <div className="form-group">
+                    <label>Título da Atividade *</label>
+                    <input type="text" placeholder="Ex: Passagem de cabos" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Responsável</label>
+                      <select value={taskForm.assigneeId} onChange={e => setTaskForm({...taskForm, assigneeId: e.target.value})}>
+                        <option value="">Não atribuído</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Prazo</label>
+                      <input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({...taskForm, dueDate: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Meta (Quantidade)</label>
+                      <input type="number" value={taskForm.measurementTarget} onChange={e => setTaskForm({...taskForm, measurementTarget: Number(e.target.value)})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Unidade (Ex: Metros)</label>
+                      <input type="text" value={taskForm.measurementType} onChange={e => setTaskForm({...taskForm, measurementType: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="animate-fadeIn">
+                  <div className="form-group">
+                    <label>Vincular a Indicador (Código)</label>
+                    <input 
+                      type="text" 
+                      value={taskForm.kpiCode || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setTaskForm({...taskForm, kpiCode: val, kpiEnabled: val.length > 0});
+                      }} 
+                      placeholder="Ex: OPE 009"
+                    />
+                  </div>
+                  {taskForm.kpiEnabled && (
+                    <div className="kpi-info-box" style={{ marginTop: '1.5rem', background: 'rgba(255,100,0,0.05)', borderColor: 'var(--accent)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <BarChart3 size={18} style={{ color: 'var(--accent)' }} />
+                      <span style={{ fontSize: '13px' }}>Esta tarefa alimenta o KPI <strong>{taskForm.kpiCode}</strong>.</span>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Parâmetros / Dados Adicionais</span>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        onClick={() => {
+                          const p = [...(taskForm.kpiParams || []), ''];
+                          setTaskForm({...taskForm, kpiParams: p});
+                        }}
+                      >
+                        + Adicionar
+                      </button>
+                    </div>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                      Adicione campos extras que devem ser preenchidos na hora de lançar a atividade.
+                    </p>
+                    
+                    <div>
+                      {(taskForm.kpiParams || []).map((param: string, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                          <input 
+                            type="text" 
+                            value={param} 
+                            onChange={e => {
+                              const p = [...(taskForm.kpiParams || [])];
+                              p[idx] = e.target.value;
+                              setTaskForm({...taskForm, kpiParams: p});
+                            }}
+                            placeholder="Nome do Parâmetro (Ex: Data da OS)" 
+                            style={{ flex: 1, padding: '6px', fontSize: '12px' }}
+                          />
+                          <button className="rtc-icon-btn danger" onClick={() => {
+                            const p = [...(taskForm.kpiParams || [])];
+                            p.splice(idx, 1);
+                            setTaskForm({...taskForm, kpiParams: p});
+                          }}><Trash2 size={14}/></button>
+                        </div>
+                      ))}
+                      {(taskForm.kpiParams?.length === 0 || !taskForm.kpiParams) && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Nenhum parâmetro vinculado.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border)' }}>
               <button className="btn-secondary" onClick={() => setIsTaskModalOpen(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={handleCreateTask}>Criar Atividade</button>
+              <button className="btn-primary" onClick={handleCreateTask}>{editingTask ? 'Salvar Alterações' : 'Criar Atividade'}</button>
             </div>
           </div>
         </div>
