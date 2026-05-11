@@ -276,15 +276,41 @@ export function AppProvider({ children }) {
 
   const updateUser = async (userId, updates) => {
     try {
-      if (updates.password) {
-        const { error: authError } = await supabase.auth.updateUser({ password: updates.password });
+      const { password, ...dbUpdates } = updates;
+      
+      // Password update only works for the current logged-in user in Supabase Auth
+      if (password && userId === currentUser?.id) {
+        const { error: authError } = await supabase.auth.updateUser({ password });
         if (authError) throw authError;
       }
-      const { error } = await supabase.from('users').update(updates).eq('id', userId);
-      if (error) throw error;
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(dbUpdates)
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Erro ao atualizar no banco de dados');
+      }
+      
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...dbUpdates } : u));
+      
+      if (userId === currentUser?.id) {
+        const updated = { ...currentUser, ...dbUpdates };
+        setCurrentUser(updated);
+        localStorage.setItem('currentUser', JSON.stringify(updated));
+      }
+      
       return { success: true };
     } catch (error) {
+      console.error('Erro em updateUser:', error);
       return { success: false, error: error.message };
     }
   };

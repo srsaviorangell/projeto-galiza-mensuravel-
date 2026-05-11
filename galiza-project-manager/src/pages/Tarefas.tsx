@@ -58,11 +58,12 @@ const KPI_DICTIONARY = [
 ];
 
 // Componente Memoizado para evitar re-renders pesados ao digitar
-const MemoizedTaskCard = memo(({ task, isDone, onEdit, onLaunch, onDelete, onRevert, getProjectName, openHistoryModal }: any) => {
+const MemoizedTaskCard = memo(({ task, isDone, onEdit, onLaunch, onDelete, onRevert, getProjectName, openHistoryModal, getAssigneeName }: any) => {
   const pName = getProjectName(task.projectId);
   const progress = task.measurementTarget > 0 ? (task.measurementCurrent / task.measurementTarget) * 100 : 0;
   const isUrgent = task.priority === 'Alta' && task.status !== 'Concluída';
-  const assigneeInitial = (task.assignee || 'N')[0].toUpperCase();
+  const assigneeName = getAssigneeName(task.assigneeId);
+  const assigneeInitial = (assigneeName !== 'Não atribuído' ? assigneeName : 'N')[0].toUpperCase();
 
   return (
     <div className={`rich-task-card ${isDone ? 'is-done' : ''} ${isUrgent ? 'urgent-border' : ''}`}>
@@ -103,7 +104,7 @@ const MemoizedTaskCard = memo(({ task, isDone, onEdit, onLaunch, onDelete, onRev
           <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: '14px' }}>
             {assigneeInitial}
           </div>
-          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 500 }}>{task.assignee || 'Não atribuído'}</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 500 }}>{assigneeName}</span>
         </div>
 
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', margin: '0 -24px 15px -24px' }}></div>
@@ -833,6 +834,7 @@ const handleSaveExecution = async () => {
                     onRevert={handleRevertExecution}
                     getProjectName={getProjectName}
                     openHistoryModal={openHistoryModal}
+                    getAssigneeName={getAssigneeName}
                   />
                 ))}
                 {pending.length > visiblePendingCount && (
@@ -895,6 +897,7 @@ const handleSaveExecution = async () => {
                             onRevert={handleRevertExecution}
                             getProjectName={getProjectName}
                             openHistoryModal={openHistoryModal}
+                            getAssigneeName={getAssigneeName}
                           />
                         </div>
                       )}

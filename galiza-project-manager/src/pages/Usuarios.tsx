@@ -112,7 +112,11 @@ export default function Usuarios() {
         if (formData.password) {
           updates.password = formData.password;
         }
-        await updateUser(editingUser, updates);
+        const result = await updateUser(editingUser, updates);
+        if (!result.success) {
+          alert(result.error || 'Erro ao atualizar usuário');
+          return;
+        }
       } else {
         if (!formData.password) {
           return;
@@ -128,13 +132,25 @@ export default function Usuarios() {
           created_at: new Date().toISOString()
         });
         
+        if (!result.success) {
+          alert(result.error || 'Erro ao criar usuÃ¡rio');
+          return;
+        }
         if (result.success && result.tempPassword) {
           alert(`Usuário criado! Senha provisória: ${result.tempPassword}\n\nEnvie o link de acesso: ${result.inviteLink}`);
         }
       }
       setIsModalOpen(false);
       setEditingUser(null);
-      setFormData({ name: '', email: '', password: '', role: 'user' });
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'user',
+        phone: '',
+        specialty: '',
+        status: 'Ativo'
+      });
     } catch (error: any) {
       console.error('Erro ao salvar usuário:', error);
     }
