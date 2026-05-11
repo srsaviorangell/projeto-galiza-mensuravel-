@@ -302,15 +302,22 @@ export default function Dashboard() {
   }, [projects]);
 
   const projectProgressData = useMemo(() => {
-    return projects.slice(0, 6).map(p => ({
-      name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
-      progress: p.progress || 0,
-      status: p.progress === 100 ? 'concluido' : 
-             p.endDate && new Date(p.endDate.split('/').reverse().join('-')) < new Date() ? 'atrasado' : 'em-andamento',
-      statusLabel: p.progress === 100 ? 'Concluído' : 
-             p.endDate && new Date(p.endDate.split('/').reverse().join('-')) < new Date() ? 'Atrasado' : 'Em andamento',
-    }));
-  }, [projects]);
+    return projects.slice(0, 6).map(p => {
+      const pTasks = tasks.filter((t: any) => String(t.projectId) === String(p.id));
+      const total = pTasks.length;
+      const completed = pTasks.filter((t: any) => t.status === 'Concluída').length;
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+      
+      return {
+        name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
+        progress: progress,
+        status: progress === 100 ? 'concluido' : 
+               p.endDate && new Date(p.endDate.split('/').reverse().join('-')) < new Date() ? 'atrasado' : 'em-andamento',
+        statusLabel: progress === 100 ? 'Concluído' : 
+               p.endDate && new Date(p.endDate.split('/').reverse().join('-')) < new Date() ? 'Atrasado' : 'Em andamento',
+      };
+    });
+  }, [projects, tasks]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

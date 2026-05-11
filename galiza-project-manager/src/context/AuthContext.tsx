@@ -360,20 +360,24 @@ export function AppProvider({ children }) {
       kpiEnabled, kpiCode, kpiCategory, kpiParams,
       ...rest 
     } = t;
-    return {
-      ...rest,
-      project_id: projectId || null,
-      assignee_id: assigneeId || null,
-      due_date: dueDate ? dueDate : null,
-      measurement_target: measurementTarget !== undefined ? measurementTarget : rest.measurement_target,
-      measurement_current: measurementCurrent !== undefined ? measurementCurrent : rest.measurement_current,
-      measurement_type: measurementType !== undefined ? measurementType : rest.measurement_type,
-      days_late: daysLate !== undefined ? daysLate : rest.days_late,
-      kpi_enabled: kpiEnabled !== undefined ? kpiEnabled : rest.kpi_enabled,
-      kpi_code: kpiCode !== undefined ? kpiCode : rest.kpi_code,
-      kpi_category: kpiCategory !== undefined ? kpiCategory : rest.kpi_category,
-      kpi_params: kpiParams !== undefined ? kpiParams : rest.kpi_params
-    };
+    
+    const dbObj = { ...rest };
+    
+    if (projectId !== undefined) dbObj.project_id = projectId || null;
+    if (assigneeId !== undefined) dbObj.assignee_id = assigneeId || null;
+    if (dueDate !== undefined) dbObj.due_date = dueDate || null;
+    
+    if (measurementTarget !== undefined) dbObj.measurement_target = Number(measurementTarget);
+    if (measurementCurrent !== undefined) dbObj.measurement_current = Number(measurementCurrent);
+    
+    if (measurementType !== undefined) dbObj.measurement_type = measurementType;
+    if (daysLate !== undefined) dbObj.days_late = daysLate;
+    if (kpiEnabled !== undefined) dbObj.kpi_enabled = kpiEnabled;
+    if (kpiCode !== undefined) dbObj.kpi_code = kpiCode;
+    if (kpiCategory !== undefined) dbObj.kpi_category = kpiCategory;
+    if (kpiParams !== undefined) dbObj.kpi_params = kpiParams;
+    
+    return dbObj;
   };
 
   const mapProjectToSnakeCase = (p) => {
@@ -405,14 +409,14 @@ export function AppProvider({ children }) {
         projectId: t.project_id,
         assigneeId: t.assignee_id,
         dueDate: t.due_date,
-        measurementTarget: t.measurement_target,
-        measurementCurrent: t.measurement_current,
+        measurementTarget: Number(t.measurement_target || 0),
+        measurementCurrent: Number(t.measurement_current || 0),
         measurementType: t.measurement_type,
         daysLate: t.days_late,
         kpiEnabled: t.kpi_enabled,
         kpiCode: t.kpi_code,
         kpiCategory: t.kpi_category,
-        kpiParams: t.kpi_params
+        kpiParams: t.kpi_params || []
       });
 
       const mapProjectToCamelCase = (p) => ({
@@ -516,7 +520,6 @@ export function AppProvider({ children }) {
   const updateTask = async (id, updates) => {
     try {
       const dbUpdates = mapTaskToSnakeCase(updates);
-      console.log('DEBUG KPI - Enviando para Supabase:', dbUpdates);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
         method: 'PATCH',
         headers: {
@@ -528,7 +531,7 @@ export function AppProvider({ children }) {
         body: JSON.stringify(dbUpdates)
       });
       if (!res.ok) throw new Error(await res.text() || 'Erro na API');
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+      await refreshData();
       return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
   };
@@ -543,7 +546,7 @@ export function AppProvider({ children }) {
         }
       });
       if (!res.ok) throw new Error(await res.text() || 'Erro na API');
-      setTasks(prev => prev.filter(t => t.id !== id));
+      await refreshData();
       return { success: true };
     } catch (error) { return { success: false, error: error.message }; }
   };

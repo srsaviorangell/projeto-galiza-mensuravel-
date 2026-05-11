@@ -132,12 +132,23 @@ export default function Projetos() {
   // Summary stats
   const summaryStats = useMemo(() => {
     const total = projects.length;
-    const completed = projects.filter((p: any) => p.progress === 100).length;
-    const late = projects.filter((p: any) => getEffectiveStatus(p) === 'Atrasado').length;
+    
+    // Calculate total completed projects based on dynamic progress
+    const projectDetails = projects.map((p: any) => {
+      const pTasks = tasks.filter((t: any) => String(t.projectId) === String(p.id));
+      const tTotal = pTasks.length;
+      const tCompleted = pTasks.filter((t: any) => t.status === 'Concluída').length;
+      const pProgress = tTotal > 0 ? Math.round((tCompleted / tTotal) * 100) : 0;
+      return { ...p, dynamicProgress: pProgress };
+    });
+
+    const completed = projectDetails.filter((p: any) => p.dynamicProgress === 100).length;
+    const late = projectDetails.filter((p: any) => getEffectiveStatus(p) === 'Atrasado').length;
     const avgProgress =
-      total > 0 ? Math.round(projects.reduce((s: number, p: any) => s + p.progress, 0) / total) : 0;
+      total > 0 ? Math.round(projectDetails.reduce((s: number, p: any) => s + p.dynamicProgress, 0) / total) : 0;
+      
     return { total, completed, late, avgProgress };
-  }, [projects]);
+  }, [projects, tasks]);
 
   // Form handlers
   const handleOpenCreate = () => {
@@ -262,10 +273,12 @@ export default function Projetos() {
   };
 
   // Get project task count from tasks context
-  function getProjectTasks(projectId: number) {
-    const projectTasks = tasks.filter((t: any) => t.projectId === projectId);
+  function getProjectStats(projectId: number) {
+    const projectTasks = tasks.filter((t: any) => String(t.projectId) === String(projectId));
     const completed = projectTasks.filter((t: any) => t.status === 'Concluída').length;
-    return { completed, total: projectTasks.length };
+    const total = projectTasks.length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { completed, total, progress };
   }
 
   const filterOptions: { label: string; value: FilterStatus; color: string }[] = [
@@ -436,11 +449,11 @@ export default function Projetos() {
           {filteredProjects.map((proj: any, index: number) => {
             const deadline = getDeadlineInfo(proj);
             const effectiveStatus = getEffectiveStatus(proj);
-            const taskInfo = getProjectTasks(proj.id);
+            const taskInfo = getProjectStats(proj.id);
             const progressColor =
-              proj.progress === 100
+              taskInfo.progress === 100
                 ? 'var(--success)'
-                : proj.progress > 0
+                : taskInfo.progress > 0
                 ? 'var(--accent)'
                 : 'var(--border)';
             const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -525,10 +538,10 @@ export default function Projetos() {
                   <div className="projeto-progress-section" style={{ marginTop: 'auto' }}>
                     <div className="progress-labels">
                       <span>Progresso</span>
-                      <span className="progress-value">{proj.progress}%</span>
+                      <span className="progress-value">{taskInfo.progress}%</span>
                     </div>
                     <div className="progress-bar-container">
-                      <div className="progress-bar-fill" style={{ width: `${proj.progress}%`, backgroundColor: progressColor }} />
+                      <div className="progress-bar-fill" style={{ width: `${taskInfo.progress}%`, backgroundColor: taskInfo.progress === 100 ? 'var(--success)' : 'var(--accent)' }} />
                     </div>
                   </div>
 
