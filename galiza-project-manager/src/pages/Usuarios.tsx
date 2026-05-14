@@ -46,7 +46,8 @@ export default function Usuarios() {
     role: 'user',
     phone: '',
     specialty: '',
-    status: 'Ativo'
+    status: 'Ativo',
+    matricula: ''
   });
 
   const filteredUsers = users.filter(u => 
@@ -63,7 +64,8 @@ export default function Usuarios() {
       role: 'user',
       phone: '',
       specialty: '',
-      status: 'Ativo'
+      status: 'Ativo',
+      matricula: ''
     });
     setIsModalOpen(true);
   };
@@ -77,7 +79,8 @@ export default function Usuarios() {
       role: user.role || 'user',
       phone: user.phone || '',
       specialty: user.specialty || '',
-      status: user.status || 'Ativo'
+      status: user.status || 'Ativo',
+      matricula: user.matricula || ''
     });
     setIsModalOpen(true);
   };
@@ -107,7 +110,8 @@ export default function Usuarios() {
           role: formData.role,
           phone: formData.phone,
           specialty: formData.specialty,
-          status: formData.status
+          status: formData.status,
+          matricula: formData.matricula
         };
         if (formData.password) {
           updates.password = formData.password;
@@ -129,6 +133,7 @@ export default function Usuarios() {
           phone: formData.phone,
           specialty: formData.specialty,
           status: formData.status,
+          matricula: formData.matricula,
           created_at: new Date().toISOString()
         });
         
@@ -149,7 +154,8 @@ export default function Usuarios() {
         role: 'user',
         phone: '',
         specialty: '',
-        status: 'Ativo'
+        status: 'Ativo',
+        matricula: ''
       });
     } catch (error: any) {
       console.error('Erro ao salvar usuário:', error);
@@ -298,7 +304,7 @@ export default function Usuarios() {
 
       <div className="usuarios-table">
         <div className="table-header">
-          <div className="col-user">Usuário</div>
+          <div className="col-user">Usuário / ID</div>
           <div className="col-email">Contato</div>
           <div className="col-role">Função / Cargo</div>
           <div className="col-actions">Ações</div>
@@ -320,6 +326,7 @@ export default function Usuarios() {
                     </div>
                     <div className="user-info">
                       <span className="user-name">{user.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 700 }}>ID: {user.matricula || '---'}</span>
                       {user.id === currentUser?.id && (
                         <span className="you-badge">Você</span>
                       )}
@@ -455,12 +462,12 @@ export default function Usuarios() {
                   />
                 </div>
                 <div className="form-group">
-                  <label><Briefcase size={14} /> Cargo / Especialidade</label>
+                  <label><Shield size={14} /> ID / Matrícula</label>
                   <input
                     type="text"
-                    placeholder="Ex: Técnico de Campo"
-                    value={formData.specialty}
-                    onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                    placeholder="Ex: 10020"
+                    value={formData.matricula}
+                    onChange={(e) => setFormData({ ...formData, matricula: e.target.value })}
                   />
                 </div>
               </div>

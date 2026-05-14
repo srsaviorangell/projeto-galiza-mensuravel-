@@ -35,6 +35,46 @@ export function AppProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [kpis, setKpis] = useState(() => {
+    const saved = localStorage.getItem('global_kpis');
+    try {
+      return saved ? JSON.parse(saved) : [
+        { 
+          id: 'ope009', 
+          code: 'OPE 009', 
+          name: 'Tempo Médio de Diagnóstico', 
+          category: 'Operacional',
+          unit: 'horas',
+          color: '#f59e0b',
+          params: ['Hora_abertura_OS', 'Hora_diagnóstico_confirmado', 'N_OS_período'] 
+        }
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  const [globalParams, setGlobalParams] = useState(() => {
+    const saved = localStorage.getItem('global_kpi_params');
+    try {
+      return saved ? JSON.parse(saved) : [
+        { id: 'p1', name: 'Hora_abertura_OS', type: 'Timestamp', source: 'Sistema de OS', desc: 'Momento da geração da OS no sistema' },
+        { id: 'p2', name: 'Hora_diagnóstico_confirmado', type: 'Timestamp', source: 'Bot WhatsApp', desc: 'Técnico declara causa + gestor valida' },
+        { id: 'p3', name: 'N_OS_período', type: 'Inteiro', source: 'Histórico de OS', desc: 'Total de OS encerradas no período' },
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist KPIs and Params
+  useEffect(() => {
+    localStorage.setItem('global_kpis', JSON.stringify(kpis));
+  }, [kpis]);
+
+  useEffect(() => {
+    localStorage.setItem('global_kpi_params', JSON.stringify(globalParams));
+  }, [globalParams]);
 
   const loadUserProfile = async (sessionUser) => {
     if (!sessionUser) return;
@@ -75,6 +115,7 @@ export function AppProvider({ children }) {
           role: newRole,
           first_access: !isSudoEmail,
           status: 'Ativo',
+          matricula: '',
           created_at: new Date().toISOString()
         };
         await supabase.from('users').insert([newUser]);
@@ -246,7 +287,8 @@ export function AppProvider({ children }) {
             name: userData.name,
             specialty: userData.specialty,
             phone: userData.phone,
-            role: userData.role || 'user',
+             role: userData.role || 'user',
+            matricula: userData.matricula || '',
             first_access: true
           }
         }
@@ -261,6 +303,7 @@ export function AppProvider({ children }) {
         phone: userData.phone,
         role: userData.role || 'user',
         status: userData.status || 'Ativo',
+        matricula: userData.matricula || '',
         first_access: true,
         created_at: new Date().toISOString()
       }]);
@@ -674,7 +717,11 @@ export function AppProvider({ children }) {
     addHistory,
     getHistory,
     deleteHistory,
-    addKpiCollection
+    addKpiCollection,
+    kpis,
+    setKpis,
+    globalParams,
+    setGlobalParams
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

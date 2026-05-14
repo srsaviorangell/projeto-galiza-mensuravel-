@@ -11,38 +11,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { AppContext } from '../context/AuthContext';
 import './KPIs.css';
 
-const INITIAL_PARAMS = [
-  { id: 'p1', name: 'Hora_abertura_OS', type: 'Timestamp', source: 'Sistema de OS', desc: 'Momento da geração da OS no sistema' },
-  { id: 'p2', name: 'Hora_diagnóstico_confirmado', type: 'Timestamp', source: 'Bot WhatsApp', desc: 'Técnico declara causa + gestor valida' },
-  { id: 'p3', name: 'N_OS_período', type: 'Inteiro', source: 'Histórico de OS', desc: 'Total de OS encerradas no período' },
-];
-
-const INITIAL_KPIS = [
-  { id: 'ope009', code: 'OPE 009', name: 'Tempo Médio de Diagnóstico', icon: Clock, color: '#f59e0b', description: 'Tempo médio para identificar causa de falha', unit: 'horas', category: 'Operacional', formula: 'SUM(Hora_diagnóstico_confirmado - Hora_abertura_OS) / N_OS_período', linkedParams: ['p1', 'p2', 'p3'] },
-];
-
 export default function KPIs() {
-  const { projects, tasks, refreshData } = useContext(AppContext);
-  const [allKpis, setAllKpis] = useState(INITIAL_KPIS);
-  
-  const [allParams, setAllParams] = useState(() => {
-    const saved = localStorage.getItem('global_kpi_params');
-    try {
-      const parsed = saved ? JSON.parse(saved) : INITIAL_PARAMS;
-      // Migração: Se encontrar nomes em minúsculo, força o reset para o padrão novo (PascalCase)
-      if (parsed.some((p: any) => p.name === 'hora_abertura_os')) {
-        return INITIAL_PARAMS;
-      }
-      return parsed;
-    } catch {
-      return INITIAL_PARAMS;
-    }
-  });
-
-  // Salva no LocalStorage sempre que a configuração mudar
-  useEffect(() => {
-    localStorage.setItem('global_kpi_params', JSON.stringify(allParams));
-  }, [allParams]);
+  const { projects, tasks, refreshData, kpis: allKpis, setKpis: setAllKpis, globalParams: allParams, setGlobalParams: setAllParams } = useContext(AppContext);
 
   const [paramForm, setParamForm] = useState({ id: '', name: '', type: 'Inteiro', source: '', desc: '' });
   const [isParamFormOpen, setIsParamFormOpen] = useState(false);
@@ -129,7 +99,8 @@ export default function KPIs() {
       ...newKpi,
       id: `custom-${Date.now()}`,
       icon: Activity,
-      description: 'KPI customizado adicionado pelo usuÃ¡rio'
+      description: 'KPI customizado adicionado pelo usuário',
+      params: [] // Initialize with empty params, will be linked via linkedParams later or directly
     };
     setAllKpis([...allKpis, kpiToAdd]);
     setIsAddModalOpen(false);
@@ -904,7 +875,13 @@ export default function KPIs() {
               <button className="btn-secondary" onClick={() => setEditingKPI(null)}>Cancelar</button>
               <button className="btn-primary" onClick={() => {
                 const { _showParamPicker, ...kpiToSave } = editingKPI;
-                setAllKpis(allKpis.map(k => k.id === kpiToSave.id ? kpiToSave : k));
+                // Sync params array with names from linkedParams IDs
+                const paramNames = (kpiToSave.linkedParams || []).map((pid: string) => {
+                  return allParams.find((p: any) => p.id === pid)?.name;
+                }).filter(Boolean);
+                
+                const updatedKpi = { ...kpiToSave, params: paramNames };
+                setAllKpis(allKpis.map((k: any) => k.id === updatedKpi.id ? updatedKpi : k));
                 setEditingKPI(null);
               }}>Salvar Configurações</button>
             </div>

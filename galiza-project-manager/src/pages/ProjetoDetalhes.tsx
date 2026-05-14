@@ -11,7 +11,7 @@ import './ProjetoDetalhes.css';
 export default function ProjetoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees, addKpiCollection } = useContext(AppContext);
+  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees, addKpiCollection, kpis = [] } = useContext(AppContext);
   
   // States
   const [executionModalTask, setExecutionModalTask] = useState<any>(null);
@@ -115,10 +115,11 @@ export default function ProjetoDetalhes() {
     }
   }
 
-  const getAssigneeName = (assigneeId: any) => {
-    if(!assigneeId) return 'Não atribuído';
-    const user = users.find(u => String(u.id) === String(assigneeId));
-    return user?.name || 'Não atribuído';
+  const getAssigneeName = (id: any) => {
+    if(!id) return 'Não atribuído';
+    const user = users.find(u => String(u.id) === String(id));
+    if (!user) return 'Não atribuído';
+    return user.matricula ? `${user.name} (${user.matricula})` : user.name;
   };
 
   const delayedTasks = projectTasks.filter(t => {
@@ -638,10 +639,10 @@ if(!linkForm.url || !linkForm.title) {
                       <li key={index} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span style={{ fontWeight: 600, color: h.action === 'delete' ? 'var(--danger)' : h.action === 'create' ? 'var(--success)' : 'var(--accent)' }}>
-                              {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
+                               {h.action === 'create' ? 'Criado' : h.action === 'update' ? 'Atualizado' : h.action === 'delete' ? 'Excluído' : h.action}
                             </span>
                             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                              {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
+                               {h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : ''}
                             </span>
                          </div>
                          {h.action === 'update' && h.newValue && (
@@ -828,19 +829,58 @@ if(!linkForm.url || !linkForm.title) {
                     </div>
                   </div>
                 </div>
-              ) : (
+               ) : (
                 <div className="animate-fadeIn">
                   <div className="form-group">
-                    <label>Vincular a Indicador (Código)</label>
-                    <input 
-                      type="text" 
-                      value={taskForm.kpiCode || ''} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        setTaskForm({...taskForm, kpiCode: val, kpiEnabled: val.length > 0});
-                      }} 
-                      placeholder="Ex: OPE 009"
-                    />
+                    <label>Vincular a Indicador Oficial</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px', marginTop: '10px' }}>
+                      {kpis.map((kpi: any) => (
+                        <button
+                          key={kpi.code}
+                          onClick={() => {
+                            setTaskForm({
+                              ...taskForm,
+                              kpiCode: kpi.code,
+                              kpiEnabled: true,
+                              kpiCategory: kpi.category || '',
+                              kpiParams: kpi.params || []
+                            });
+                          }}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            background: taskForm.kpiCode === kpi.code ? 'rgba(255,100,0,0.1)' : 'rgba(255,255,255,0.02)',
+                            color: taskForm.kpiCode === kpi.code ? 'var(--accent)' : 'var(--text-primary)',
+                            borderColor: taskForm.kpiCode === kpi.code ? 'var(--accent)' : 'var(--border)',
+                            fontSize: '11px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <strong style={{ fontSize: '13px' }}>{kpi.code}</strong>
+                          <span style={{ opacity: 0.7, fontSize: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kpi.name}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ marginTop: '1rem' }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Ou digite um código manual:</label>
+                      <input 
+                        type="text" 
+                        value={taskForm.kpiCode || ''} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          setTaskForm({...taskForm, kpiCode: val, kpiEnabled: val.length > 0});
+                        }} 
+                        placeholder="Ex: CUSTOM_KPI"
+                        style={{ marginTop: '5px' }}
+                      />
+                    </div>
                   </div>
                   {taskForm.kpiEnabled && (
                     <div className="kpi-info-box" style={{ marginTop: '1.5rem', background: 'rgba(255,100,0,0.05)', borderColor: 'var(--accent)', display: 'flex', gap: '8px', alignItems: 'center' }}>

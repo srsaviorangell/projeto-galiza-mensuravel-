@@ -12,50 +12,6 @@ import {
 import { CircularProgress } from '../components/CircularProgress';
 import './Tarefas.css';
 
-const KPI_DICTIONARY = [
-  { 
-    code: 'OPE 009', 
-    name: 'Tempo Médio de Diagnóstico', 
-    category: 'Operacional',
-    params: ['Hora_abertura_OS', 'Hora_diagnóstico_confirmado', 'N_OS_período'] 
-  },
-  { 
-    code: 'OPE 012', 
-    name: 'Incidentes Recorrentes %', 
-    category: 'Operacional',
-    params: ['N_incidentes_reincidentes', 'N_total_incidentes_período'] 
-  },
-  { 
-    code: 'OPE 013', 
-    name: 'Tempo Médio de Indisponibilidade', 
-    category: 'Operacional',
-    params: ['Hora_abertura_OS', 'Hora_resolução_confirmada', 'N_OS_resolvidas'] 
-  },
-  { 
-    code: 'OPE 006', 
-    name: '% OS Reincidentes', 
-    category: 'Operacional',
-    params: ['N_OS_período', 'OS_reabertas_mesmo_ponto_30d'] 
-  },
-  { 
-    code: 'EXP.002', 
-    name: 'Capacidade Instalada', 
-    category: 'Expansão',
-    params: ['Portas_disponíveis_por_CTO'] 
-  },
-  { 
-    code: 'EXP.003', 
-    name: 'Casas Passadas por Rota', 
-    category: 'Expansão',
-    params: ['UHs_no_trajeto_da_rota'] 
-  },
-  { 
-    code: 'FIN 005', 
-    name: 'Custo de Rede por Cliente', 
-    category: 'Financeiro',
-    params: ['Custo_total_rede_período', 'Média_clientes_ativos_período'] 
-  }
-];
 
 // Componente Memoizado para evitar re-renders pesados ao digitar
 const MemoizedTaskCard = memo(({ task, isDone, onEdit, onLaunch, onDelete, onRevert, getProjectName, openHistoryModal, getAssigneeName }: any) => {
@@ -174,7 +130,8 @@ export default function Tarefas() {
     addHistory, 
     getHistory, 
     deleteHistory,
-    addKpiCollection
+    addKpiCollection,
+    kpis = []
   } = context;
   
   const navigate = useNavigate();
@@ -570,7 +527,8 @@ const handleSaveExecution = async () => {
   const getAssigneeName = (id: any) => {
     if(!id) return 'Não atribuído';
     const user = users.find(u => String(u.id) === String(id));
-    return user?.name || 'Não atribuído';
+    if (!user) return 'Não atribuído';
+    return user.matricula ? `${user.name} (${user.matricula})` : user.name;
   };
 
   const assignees = getAllAssignees();
@@ -1196,7 +1154,7 @@ const handleSaveExecution = async () => {
                   <div className="form-group">
                     <label>Vincular a Indicador Oficial</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px', marginTop: '10px' }}>
-                      {KPI_DICTIONARY.map(kpi => (
+                      {kpis.map((kpi: any) => (
                         <button
                           key={kpi.code}
                           onClick={() => {
@@ -1205,7 +1163,7 @@ const handleSaveExecution = async () => {
                               kpiCode: kpi.code,
                               kpiEnabled: true,
                               kpiCategory: kpi.category || '',
-                              kpiParams: kpi.params
+                              kpiParams: kpi.params || []
                             });
                           }}
                           style={{
