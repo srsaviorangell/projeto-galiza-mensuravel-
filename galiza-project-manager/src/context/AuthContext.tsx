@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = 'https://dgqmnzkauhpkpzhrnwlb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRncW1uemthdWhwa3B6aHJud2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjA0MTUsImV4cCI6MjA5MTczNjQxNX0.70a3IAwNlHJOnpKrzfsafDUNjtNfnPyScjKBkiQrpJE';
+const SUPABASE_SERVICE_ROLE = import.meta.env.VITE_SUPABASE_SERVICE_ROLE || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRncW1uemthdWhwa3B6aHJud2xiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjE2MDQxNSwiZXhwIjoyMDkxNzM2NDE1fQ.lNeSwWo7-MZIt2HAWOx_7tT0jZL_K-8XC4C-cDbOznQ';
 
 export const AppContext = createContext();
 
@@ -35,6 +36,7 @@ export function AppProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [kpiCollections, setKpiCollections] = useState([]);
   const [kpis, setKpis] = useState(() => {
     const saved = localStorage.getItem('global_kpis');
     try {
@@ -154,10 +156,11 @@ export function AppProvider({ children }) {
     const initialize = async () => {
       try {
         // Carrega dados iniciais em paralelo
-        const [projectsData, tasksData, usersData] = await Promise.all([
+        const [projectsData, tasksData, usersData, kpiCollectionsData] = await Promise.all([
           fetchFromSupabase('projects'),
           fetchFromSupabase('tasks'),
-          fetchFromSupabase('users')
+          fetchFromSupabase('users'),
+          fetchFromSupabase('kpi_collections')
         ]);
 
         if (!isMounted) return;
@@ -184,9 +187,19 @@ export function AppProvider({ children }) {
           tasksTotal: p.tasks_total
         });
 
+        const mapKpiCollectionToCamelCase = (k) => ({
+          ...k,
+          taskId: k.task_id,
+          kpiCode: k.kpi_code,
+          kpiCategory: k.kpi_category,
+          dataColeta: k.data_coleta,
+          collaboratorId: k.collaborator_id
+        });
+
         setProjects(Array.isArray(projectsData) ? projectsData.map(mapProjectToCamelCase) : []);
         setTasks(Array.isArray(tasksData) ? tasksData.map(mapTaskToCamelCase) : []);
         setUsers(Array.isArray(usersData) ? usersData : []);
+        setKpiCollections(Array.isArray(kpiCollectionsData) ? kpiCollectionsData.map(mapKpiCollectionToCamelCase) : []);
       } catch (err) {
         console.error('Erro na inicialização:', err);
       } finally {
@@ -278,41 +291,151 @@ export function AppProvider({ children }) {
 
   const addUser = async (userData) => {
     try {
-      const tempPassword = Math.random().toString(36).slice(-8);
+      const passwordToUse = userData.password || Math.random().toString(36).slice(-8);
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email.toLowerCase(),
-        password: tempPassword,
+        password: passwordToUse,
         options: {
           data: {
             name: userData.name,
             specialty: userData.specialty,
             phone: userData.phone,
-             role: userData.role || 'user',
+            role: userData.role || 'user',
             matricula: userData.matricula || '',
             first_access: true
           }
         }
       });
-      if (authError) throw authError;
 
-      const { error: dbError } = await supabase.from('users').insert([{
-        id: authData.user.id,
-        email: userData.email.toLowerCase(),
-        name: userData.name,
-        specialty: userData.specialty,
-        phone: userData.phone,
-        role: userData.role || 'user',
-        status: userData.status || 'Ativo',
-        matricula: userData.matricula || '',
-        first_access: true,
-        created_at: new Date().toISOString()
-      }]);
-      if (dbError) throw dbError;
+      if (authError) {
+        const message = authError.message || '';
+        console.error('Auth signUp error:', authError);
+        // Se já existe no Auth, tentamos recuperar o usuário via admin e criar o registro na tabela `users`
+        if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('already exists')) {
+          try {
+            // Tentar endpoint admin para listar usuários usando a chave de serviço
+            const adminUrl = `${SUPABASE_URL}/auth/v1/admin/users`;
+            const adminRes = await fetch(adminUrl, {
+              headers: { 
+                apikey: SUPABASE_SERVICE_ROLE, 
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE}` 
+              }
+            });
+
+            console.debug('Admin lookup status:', adminRes.status);
+
+            if (adminRes.ok) {
+              const adminJson = await adminRes.json();
+              const adminUsersList = adminJson?.users || adminJson || [];
+              const foundUser = adminUsersList.find(u => u.email?.toLowerCase() === userData.email.toLowerCase());
+              const existingId = foundUser?.id;
+              
+              if (existingId) {
+                // Inserir na tabela `users` usando REST com chave de serviço
+                const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+                  method: 'POST',
+                  headers: {
+                    apikey: SUPABASE_KEY,
+                    Authorization: `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    Prefer: 'return=minimal'
+                  },
+                  body: JSON.stringify({
+                    id: existingId,
+                    email: userData.email.toLowerCase(),
+                    password: passwordToUse,
+                    name: userData.name,
+                    specialty: userData.specialty || '',
+                    phone: userData.phone || '',
+                    role: userData.role || 'user',
+                    status: userData.status || 'Ativo',
+                    matricula: userData.matricula || '',
+                    first_access: true,
+                    created_at: new Date().toISOString()
+                  })
+                });
+
+                if (!insertRes.ok) {
+                  const errText = await insertRes.text();
+                  console.error('Erro ao inserir usuário (fallback):', errText);
+                  return { success: false, error: 'Usuário já existe no Auth, mas falha ao inserir no banco: ' + errText };
+                }
+
+                setUsers(prev => [...prev, { id: existingId, ...userData, created_at: new Date().toISOString() }]);
+                return { success: true, user: { id: existingId }, tempPassword: passwordToUse, inviteLink: `${window.location.origin}/login` };
+              }
+            } else {
+              const txt = await adminRes.text();
+              console.warn('Admin lookup não retornou OK:', adminRes.status, txt);
+            }
+
+            // Se não encontramos via admin, checar se já existe linha em public.users
+            const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(userData.email.toLowerCase())}`, {
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+            });
+
+            if (checkRes.ok) {
+              const rows = await checkRes.json();
+              if (Array.isArray(rows) && rows.length > 0) {
+                const row = rows[0];
+                setUsers(prev => [...prev, { id: row.id, ...row }]);
+                return { success: true, user: { id: row.id }, tempPassword: passwordToUse, inviteLink: `${window.location.origin}/login` };
+              }
+            } else {
+              const txt = await checkRes.text();
+              console.warn('Check public.users não OK:', checkRes.status, txt);
+            }
+          } catch (e) {
+            console.error('Erro no fallback admin lookup:', e);
+          }
+
+          return { success: false, error: 'Usuário já cadastrado. Verifique o email e tente novamente.' };
+        }
+        throw authError;
+      }
+
+      if (!authData || !authData.user || !authData.user.id) {
+        throw new Error('Falha ao criar usuário no Auth.');
+      }
+
+      // Usar API REST com chave de serviço para evitar problemas de RLS
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          id: authData.user.id,
+          email: userData.email.toLowerCase(),
+          password: passwordToUse,
+          name: userData.name,
+          specialty: userData.specialty || '',
+          phone: userData.phone || '',
+          role: userData.role || 'user',
+          status: userData.status || 'Ativo',
+          matricula: userData.matricula || '',
+          first_access: true,
+          created_at: new Date().toISOString()
+        })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Erro ao inserir usuário no banco de dados');
+      }
 
       const inviteLink = `${window.location.origin}/login`;
-      setUsers(prev => [...prev, { id: authData.user.id, ...userData }]);
-      return { success: true, user: authData.user, tempPassword, inviteLink };
+      setUsers(prev => [...prev, { 
+         id: authData.user.id, 
+         ...userData,
+         created_at: new Date().toISOString()
+      }]);
+      return { success: true, user: authData.user, tempPassword: passwordToUse, inviteLink };
     } catch (error) {
+      console.error('Erro em addUser:', error);
       return { success: false, error: error.message };
     }
   };
@@ -327,6 +450,8 @@ export function AppProvider({ children }) {
         if (authError) throw authError;
       }
 
+      const finalUpdates = password ? { ...dbUpdates, password } : dbUpdates;
+
       const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
         method: 'PATCH',
         headers: {
@@ -335,7 +460,7 @@ export function AppProvider({ children }) {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(dbUpdates)
+        body: JSON.stringify(finalUpdates)
       });
 
       if (!res.ok) {
@@ -343,10 +468,10 @@ export function AppProvider({ children }) {
         throw new Error(errorText || 'Erro ao atualizar no banco de dados');
       }
       
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...dbUpdates } : u));
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...finalUpdates } : u));
       
       if (userId === currentUser?.id) {
-        const updated = { ...currentUser, ...dbUpdates };
+        const updated = { ...currentUser, ...finalUpdates };
         setCurrentUser(updated);
         localStorage.setItem('currentUser', JSON.stringify(updated));
       }
@@ -360,11 +485,25 @@ export function AppProvider({ children }) {
 
   const deleteUser = async (userId) => {
     try {
-      const { error } = await supabase.from('users').delete().eq('id', userId);
-      if (error) throw error;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        }
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Erro ao excluir usuário no banco de dados');
+      }
+
       setUsers(prev => prev.filter(u => u.id !== userId));
       return { success: true };
     } catch (error) {
+      console.error('Erro em deleteUser:', error);
       return { success: false, error: error.message };
     }
   };
@@ -419,6 +558,9 @@ export function AppProvider({ children }) {
     if (kpiCode !== undefined) dbObj.kpi_code = kpiCode;
     if (kpiCategory !== undefined) dbObj.kpi_category = kpiCategory;
     if (kpiParams !== undefined) dbObj.kpi_params = kpiParams;
+    // comments and attachments are stored as-is (JSONB, no rename needed)
+    if (t.comments !== undefined) dbObj.comments = t.comments;
+    if (t.attachments !== undefined) dbObj.attachments = t.attachments;
     
     return dbObj;
   };
@@ -441,10 +583,11 @@ export function AppProvider({ children }) {
 
   const refreshData = async () => {
     try {
-      const [projectsData, tasksData, usersData] = await Promise.all([
+      const [projectsData, tasksData, usersData, kpiCollectionsData] = await Promise.all([
         fetchFromSupabase('projects'),
         fetchFromSupabase('tasks'),
-        fetchFromSupabase('users')
+        fetchFromSupabase('users'),
+        fetchFromSupabase('kpi_collections')
       ]);
 
       const mapTaskToCamelCase = (t) => ({
@@ -459,7 +602,9 @@ export function AppProvider({ children }) {
         kpiEnabled: t.kpi_enabled,
         kpiCode: t.kpi_code,
         kpiCategory: t.kpi_category,
-        kpiParams: t.kpi_params || []
+        kpiParams: t.kpi_params || [],
+        comments: t.comments || [],
+        attachments: t.attachments || []
       });
 
       const mapProjectToCamelCase = (p) => ({
@@ -470,9 +615,19 @@ export function AppProvider({ children }) {
         tasksTotal: p.tasks_total
       });
 
+      const mapKpiCollectionToCamelCase = (k) => ({
+        ...k,
+        taskId: k.task_id,
+        kpiCode: k.kpi_code,
+        kpiCategory: k.kpi_category,
+        dataColeta: k.data_coleta,
+        collaboratorId: k.collaborator_id
+      });
+
       setProjects(projectsData?.map(mapProjectToCamelCase) || []);
       setTasks(tasksData?.map(mapTaskToCamelCase) || []);
       setUsers(usersData || []);
+      setKpiCollections(kpiCollectionsData?.map(mapKpiCollectionToCamelCase) || []);
     } catch (err) {
       console.error('Erro ao atualizar dados:', err);
     }
@@ -700,6 +855,7 @@ export function AppProvider({ children }) {
     stats,
     userStats,
     userTasks,
+    kpiCollections,
     completeProfile,
     logout,
     addUser,

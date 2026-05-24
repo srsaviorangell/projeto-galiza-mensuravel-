@@ -323,3 +323,15 @@
 .modal-body::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ─── KPI Associated Tasks Hover Style ─── */
+.kpi-task-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-task-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent) !important;
+  box-shadow: 0 8px 24px rgba(255, 94, 42, 0.15) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}

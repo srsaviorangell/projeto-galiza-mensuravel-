@@ -11,7 +11,7 @@ import './ProjetoDetalhes.css';
 export default function ProjetoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees, addKpiCollection, kpis = [] } = useContext(AppContext);
+  const { projects, tasks, users, addTask, updateTask, deleteTask, updateProject, getHistory, getAllAssignees, addKpiCollection, kpis = [], globalParams = [] } = useContext(AppContext);
   
   // States
   const [executionModalTask, setExecutionModalTask] = useState<any>(null);
@@ -418,6 +418,36 @@ if(!linkForm.url || !linkForm.title) {
                         <span className="rtc-priority-label">{task.priority || 'Média'}</span>
                       </div>
                       <p className="rtc-description-text">{task.description || 'Sem descrição.'}</p>
+
+                      {task.kpiEnabled && task.kpiCode && (
+                        <div className="rtc-kpi-badge" style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255,100,0,0.04)', border: '1px dashed rgba(255,100,0,0.3)', padding: '10px 14px', borderRadius: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontSize: '11px', fontWeight: 800 }}>
+                            <BarChart3 size={14} />
+                            <span>INDICADOR VINCULADO: {task.kpiCode}</span>
+                          </div>
+                          
+                          {(() => {
+                            const execsWithKpis = (task.executions || []).filter((e: any) => e.kpiValues && Object.keys(e.kpiValues).length > 0);
+                            if (execsWithKpis.length === 0) {
+                              return <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Nenhum valor coletado ainda.</span>;
+                            }
+                            
+                            const lastExec = execsWithKpis[execsWithKpis.length - 1];
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px', marginTop: '2px' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Última Coleta ({new Date(lastExec.timestamp || lastExec.data).toLocaleDateString('pt-BR')}):</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                  {Object.entries(lastExec.kpiValues).map(([key, val]: any) => (
+                                    <span key={key} style={{ fontSize: '10px', color: 'var(--text-primary)', background: 'rgba(15, 20, 30, 0.40)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                                      <strong>{key}:</strong> {val}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                       
                       <div className="rtc-info-row" style={{ flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
                         <div className="rtc-badge-item">
@@ -508,6 +538,36 @@ if(!linkForm.url || !linkForm.title) {
                         <span className="rtc-priority-label">{task.priority || 'Média'}</span>
                       </div>
                       <p className="rtc-description-text">{task.description || 'Tarefa concluída.'}</p>
+
+                      {task.kpiEnabled && task.kpiCode && (
+                        <div className="rtc-kpi-badge" style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255,100,0,0.04)', border: '1px dashed rgba(255,100,0,0.3)', padding: '10px 14px', borderRadius: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontSize: '11px', fontWeight: 800 }}>
+                            <BarChart3 size={14} />
+                            <span>INDICADOR VINCULADO: {task.kpiCode}</span>
+                          </div>
+                          
+                          {(() => {
+                            const execsWithKpis = (task.executions || []).filter((e: any) => e.kpiValues && Object.keys(e.kpiValues).length > 0);
+                            if (execsWithKpis.length === 0) {
+                              return <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Nenhum valor coletado ainda.</span>;
+                            }
+                            
+                            const lastExec = execsWithKpis[execsWithKpis.length - 1];
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px', marginTop: '2px' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Última Coleta ({new Date(lastExec.timestamp || lastExec.data).toLocaleDateString('pt-BR')}):</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                  {Object.entries(lastExec.kpiValues).map(([key, val]: any) => (
+                                    <span key={key} style={{ fontSize: '10px', color: 'var(--text-primary)', background: 'rgba(15, 20, 30, 0.40)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                                      <strong>{key}:</strong> {val}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                   </div>
 
                   <div className="rtc-progress-area">
@@ -582,25 +642,45 @@ if(!linkForm.url || !linkForm.title) {
                {executionModalTask.kpiParams && executionModalTask.kpiParams.length > 0 && (
                  <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                    <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--accent)' }}>Preenchimento de Indicadores (KPI)</h4>
-                   {executionModalTask.kpiParams.map((param: string, idx: number) => (
-                     <div className="form-group" key={idx}>
-                       <label>{param}</label>
-                       <input 
-                         type="text" 
-                         value={executionForm.kpiValues?.[param] || ''} 
-                         onChange={e => {
-                           setExecutionForm({
-                             ...executionForm, 
-                             kpiValues: {
-                               ...(executionForm.kpiValues || {}),
-                               [param]: e.target.value
-                             }
-                           });
-                         }} 
-                         placeholder={`Digite o valor para ${param}`}
-                       />
-                     </div>
-                   ))}
+                   {executionModalTask.kpiParams.map((param: string, idx: number) => {
+                      const paramDef = (globalParams || []).find((p: any) => p.name === param);
+                      const typeLower = (paramDef?.type || '').toLowerCase();
+                      const nameLower = param.toLowerCase();
+                      
+                      let inputType = "text";
+                      let step = undefined;
+                      
+                      if (typeLower === 'timestamp' || nameLower.includes('hora') || nameLower.includes('data') || nameLower.includes('date') || nameLower.includes('time')) {
+                        inputType = "datetime-local";
+                      } else if (typeLower === 'inteiro' || typeLower === 'number' || typeLower === 'integer') {
+                        inputType = "number";
+                        step = "1";
+                      } else if (typeLower === 'decimal') {
+                        inputType = "number";
+                        step = "any";
+                      }
+                      
+                      return (
+                        <div className="form-group" key={idx} style={{ marginTop: '10px' }}>
+                          <label>{param}</label>
+                          <input 
+                            type={inputType} 
+                            step={step}
+                            value={executionForm.kpiValues?.[param] || ''} 
+                            onChange={e => {
+                              setExecutionForm({
+                                ...executionForm, 
+                                kpiValues: {
+                                  ...(executionForm.kpiValues || {}),
+                                  [param]: e.target.value
+                                }
+                              });
+                            }} 
+                            placeholder={`Digite o valor para ${param}`}
+                          />
+                        </div>
+                      );
+                    })}
                  </div>
                )}
             </div>
@@ -827,6 +907,16 @@ if(!linkForm.url || !linkForm.title) {
                       <label>Unidade (Ex: Metros)</label>
                       <input type="text" value={taskForm.measurementType} onChange={e => setTaskForm({...taskForm, measurementType: e.target.value})} />
                     </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '12px' }}>
+                    <label>Comentários / Informações Adicionais</label>
+                    <textarea 
+                      value={taskForm.description} 
+                      onChange={e => setTaskForm({...taskForm, description: e.target.value})} 
+                      placeholder="Digite comentários, observações ou informações detalhadas sobre esta atividade..." 
+                      rows={3}
+                    />
                   </div>
                 </div>
                ) : (

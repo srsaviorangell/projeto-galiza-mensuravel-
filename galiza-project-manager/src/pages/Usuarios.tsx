@@ -138,11 +138,8 @@ export default function Usuarios() {
         });
         
         if (!result.success) {
-          alert(result.error || 'Erro ao criar usuÃ¡rio');
+          alert(result.error || 'Erro ao criar usuário');
           return;
-        }
-        if (result.success && result.tempPassword) {
-          alert(`Usuário criado! Senha provisória: ${result.tempPassword}\n\nEnvie o link de acesso: ${result.inviteLink}`);
         }
       }
       setIsModalOpen(false);
