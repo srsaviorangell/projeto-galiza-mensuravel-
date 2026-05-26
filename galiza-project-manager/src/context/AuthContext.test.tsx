@@ -15,10 +15,10 @@ describe('AuthContext - Gerenciamento de Estado', () => {
   it('deve inicializar com isLoading true e depois false', async () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
-    expect(result.value.isLoading).toBe(true);
+    expect(result.current.isLoading).toBe(true);
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
   });
 
@@ -26,7 +26,7 @@ describe('AuthContext - Gerenciamento de Estado', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.currentUser).toBeNull();
+      expect(result.current.currentUser).toBeNull();
     });
   });
 
@@ -34,7 +34,7 @@ describe('AuthContext - Gerenciamento de Estado', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isAdmin).toBe(false);
+      expect(result.current.isAdmin).toBe(false);
     });
   });
 
@@ -42,7 +42,7 @@ describe('AuthContext - Gerenciamento de Estado', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isFirstAccess).toBe(false);
+      expect(result.current.isFirstAccess).toBe(false);
     });
   });
 });
@@ -70,12 +70,12 @@ describe('AuthContext - Operações de Tarefas', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let addTaskResult;
     await act(async () => {
-      addTaskResult = await result.value.addTask(mockTask);
+      addTaskResult = await result.current.addTask(mockTask);
     });
 
     expect(addTaskResult?.success).toBe(true);
@@ -90,12 +90,12 @@ describe('AuthContext - Operações de Tarefas', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let updateResult;
     await act(async () => {
-      updateResult = await result.value.updateTask(1, { status: 'Concluída' });
+      updateResult = await result.current.updateTask(1, { status: 'Concluída' });
     });
 
     expect(updateResult?.success).toBe(true);
@@ -110,12 +110,12 @@ describe('AuthContext - Operações de Tarefas', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let deleteResult;
     await act(async () => {
-      deleteResult = await result.value.deleteTask(1);
+      deleteResult = await result.current.deleteTask(1);
     });
 
     expect(deleteResult?.success).toBe(true);
@@ -144,12 +144,12 @@ describe('AuthContext - Operações de Projeto', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let addProjectResult;
     await act(async () => {
-      addProjectResult = await result.value.addProject(mockProject);
+      addProjectResult = await result.current.addProject(mockProject);
     });
 
     expect(addProjectResult?.success).toBe(true);
@@ -164,12 +164,12 @@ describe('AuthContext - Operações de Projeto', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let updateResult;
     await act(async () => {
-      updateResult = await result.value.updateProject(1, { progress: 50 });
+      updateResult = await result.current.updateProject(1, { progress: 50 });
     });
 
     expect(updateResult?.success).toBe(true);
@@ -184,12 +184,12 @@ describe('AuthContext - Operações de Projeto', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let deleteResult;
     await act(async () => {
-      deleteResult = await result.value.deleteProject(1);
+      deleteResult = await result.current.deleteProject(1);
     });
 
     expect(deleteResult?.success).toBe(true);
@@ -207,11 +207,11 @@ describe('AuthContext - Operações de Usuário', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     await act(async () => {
-      await result.value.logout();
+      await result.current.logout();
     });
 
     expect(supabase.auth.signOut).toHaveBeenCalled();
@@ -237,12 +237,12 @@ describe('AuthContext - Operações de Usuário', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let addResult;
     await act(async () => {
-      addResult = await result.value.addUser(mockUserData);
+      addResult = await result.current.addUser(mockUserData);
     });
 
     expect(addResult?.success).toBe(true);
@@ -257,12 +257,12 @@ describe('AuthContext - Operações de Usuário', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let updateResult;
     await act(async () => {
-      updateResult = await result.value.updateUser('123', { name: 'Nome Atualizado' });
+      updateResult = await result.current.updateUser('123', { name: 'Nome Atualizado' });
     });
 
     expect(updateResult?.success).toBe(true);
@@ -277,12 +277,12 @@ describe('AuthContext - Operações de Usuário', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     let deleteResult;
     await act(async () => {
-      deleteResult = await result.value.deleteUser('123');
+      deleteResult = await result.current.deleteUser('123');
     });
 
     expect(deleteResult?.success).toBe(true);
@@ -294,22 +294,22 @@ describe('AuthContext - Estatísticas', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.value.stats).toBeDefined();
-    expect(result.value.stats.totalProjects).toBe(0);
-    expect(result.value.stats.completedTasks).toBe(0);
-    expect(result.value.stats.pendingTasks).toBe(0);
+    expect(result.current.stats).toBeDefined();
+    expect(result.current.stats.totalProjects).toBe(0);
+    expect(result.current.stats.completedTasks).toBe(0);
+    expect(result.current.stats.pendingTasks).toBe(0);
   });
 
   it('deve ter userStats iniciais', async () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     await waitFor(() => {
-      expect(result.value.isLoading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.value.userStats).toBeDefined();
+    expect(result.current.userStats).toBeDefined();
   });
 });

@@ -37,7 +37,10 @@ export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [kpiCollections, setKpiCollections] = useState([]);
-  const [kpis, setKpis] = useState(() => {
+  const [kpisTableExists, setKpisTableExists] = useState(true);
+  const [paramsTableExists, setParamsTableExists] = useState(true);
+
+  const [kpis, _setKpis] = useState(() => {
     const saved = localStorage.getItem('global_kpis');
     try {
       return saved ? JSON.parse(saved) : [
@@ -48,7 +51,8 @@ export function AppProvider({ children }) {
           category: 'Operacional',
           unit: 'horas',
           color: '#f59e0b',
-          params: ['Hora_abertura_OS', 'Hora_diagnóstico_confirmado', 'N_OS_período'] 
+          params: ['Hora_abertura_OS', 'Hora_diagnóstico_confirmado', 'N_OS_período'],
+          linkedParams: ['p1', 'p2', 'p3']
         }
       ];
     } catch {
@@ -56,7 +60,7 @@ export function AppProvider({ children }) {
     }
   });
 
-  const [globalParams, setGlobalParams] = useState(() => {
+  const [globalParams, _setGlobalParams] = useState(() => {
     const saved = localStorage.getItem('global_kpi_params');
     try {
       return saved ? JSON.parse(saved) : [
@@ -69,14 +73,102 @@ export function AppProvider({ children }) {
     }
   });
 
-  // Persist KPIs and Params
-  useEffect(() => {
-    localStorage.setItem('global_kpis', JSON.stringify(kpis));
-  }, [kpis]);
+  const deleteFromSupabase = async (table, id) => {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+    } catch (err) {
+      console.error(`Erro ao deletar de ${table}:`, err);
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('global_kpi_params', JSON.stringify(globalParams));
-  }, [globalParams]);
+  const upsertToSupabase = async (table, items) => {
+    try {
+      const formatted = items.map(item => {
+        if (table === 'kpis') {
+          return {
+            id: item.id,
+            code: item.code,
+            name: item.name,
+            category: item.category,
+            unit: item.unit,
+            color: item.color,
+            description: item.description || '',
+            params: item.params || [],
+            linked_params: item.linkedParams || item.linked_params || [],
+            formula: item.formula || ''
+          };
+        } else {
+          return {
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            source: item.source || '',
+            desc: item.desc || ''
+          };
+        }
+      });
+
+      await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(formatted)
+      });
+    } catch (err) {
+      console.error(`Erro ao fazer upsert em ${table}:`, err);
+    }
+  };
+
+  const setKpis = async (newKpis) => {
+    const nextKpis = typeof newKpis === 'function' ? newKpis(kpis) : newKpis;
+    _setKpis(nextKpis);
+    localStorage.setItem('global_kpis', JSON.stringify(nextKpis));
+
+    if (kpisTableExists) {
+      const currentIds = kpis.map(k => k.id);
+      const nextIds = nextKpis.map(k => k.id);
+      const deletedIds = currentIds.filter(id => !nextIds.includes(id));
+
+      for (const id of deletedIds) {
+        await deleteFromSupabase('kpis', id);
+      }
+
+      if (nextKpis.length > 0) {
+        await upsertToSupabase('kpis', nextKpis);
+      }
+    }
+  };
+
+  const setGlobalParams = async (newParams) => {
+    const nextParams = typeof newParams === 'function' ? newParams(globalParams) : newParams;
+    _setGlobalParams(nextParams);
+    localStorage.setItem('global_kpi_params', JSON.stringify(nextParams));
+
+    if (paramsTableExists) {
+      const currentIds = globalParams.map(p => p.id);
+      const nextIds = nextParams.map(p => p.id);
+      const deletedIds = currentIds.filter(id => !nextIds.includes(id));
+
+      for (const id of deletedIds) {
+        await deleteFromSupabase('global_kpi_params', id);
+      }
+
+      if (nextParams.length > 0) {
+        await upsertToSupabase('global_kpi_params', nextParams);
+      }
+    }
+  };
+
 
   const loadUserProfile = async (sessionUser) => {
     if (!sessionUser) return;
@@ -147,6 +239,21 @@ export function AppProvider({ children }) {
     }
   };
 
+  const fetchFromSupabaseWithStatus = async (table) => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!res.ok) {
+        return { error: true, status: res.status };
+      }
+      const data = await res.json();
+      return { data };
+    } catch (err) {
+      return { error: true, message: err.message };
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     const safetyTimeout = setTimeout(() => {
@@ -156,11 +263,13 @@ export function AppProvider({ children }) {
     const initialize = async () => {
       try {
         // Carrega dados iniciais em paralelo
-        const [projectsData, tasksData, usersData, kpiCollectionsData] = await Promise.all([
+        const [projectsData, tasksData, usersData, kpiCollectionsData, kpisRes, paramsRes] = await Promise.all([
           fetchFromSupabase('projects'),
           fetchFromSupabase('tasks'),
           fetchFromSupabase('users'),
-          fetchFromSupabase('kpi_collections')
+          fetchFromSupabase('kpi_collections'),
+          fetchFromSupabaseWithStatus('kpis'),
+          fetchFromSupabaseWithStatus('global_kpi_params')
         ]);
 
         if (!isMounted) return;
@@ -195,6 +304,47 @@ export function AppProvider({ children }) {
           dataColeta: k.data_coleta,
           collaboratorId: k.collaborator_id
         });
+
+        if (kpisRes && !kpisRes.error && Array.isArray(kpisRes.data)) {
+          setKpisTableExists(true);
+          const mappedKpis = kpisRes.data.map(k => ({
+            id: k.id,
+            code: k.code,
+            name: k.name,
+            category: k.category,
+            unit: k.unit,
+            color: k.color,
+            description: k.description,
+            params: k.params || [],
+            linkedParams: k.linked_params || [],
+            formula: k.formula
+          }));
+          if (mappedKpis.length > 0) {
+            _setKpis(mappedKpis);
+            localStorage.setItem('global_kpis', JSON.stringify(mappedKpis));
+          }
+        } else {
+          setKpisTableExists(false);
+          console.log('[KPI SINC] Tabela kpis não disponível no Supabase. Fallback para localStorage ativo.');
+        }
+
+        if (paramsRes && !paramsRes.error && Array.isArray(paramsRes.data)) {
+          setParamsTableExists(true);
+          const mappedParams = paramsRes.data.map(p => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            source: p.source,
+            desc: p.desc
+          }));
+          if (mappedParams.length > 0) {
+            _setGlobalParams(mappedParams);
+            localStorage.setItem('global_kpi_params', JSON.stringify(mappedParams));
+          }
+        } else {
+          setParamsTableExists(false);
+          console.log('[PARAM SINC] Tabela global_kpi_params não disponível no Supabase. Fallback para localStorage ativo.');
+        }
 
         setProjects(Array.isArray(projectsData) ? projectsData.map(mapProjectToCamelCase) : []);
         setTasks(Array.isArray(tasksData) ? tasksData.map(mapTaskToCamelCase) : []);
@@ -583,11 +733,13 @@ export function AppProvider({ children }) {
 
   const refreshData = async () => {
     try {
-      const [projectsData, tasksData, usersData, kpiCollectionsData] = await Promise.all([
+      const [projectsData, tasksData, usersData, kpiCollectionsData, kpisRes, paramsRes] = await Promise.all([
         fetchFromSupabase('projects'),
         fetchFromSupabase('tasks'),
         fetchFromSupabase('users'),
-        fetchFromSupabase('kpi_collections')
+        fetchFromSupabase('kpi_collections'),
+        fetchFromSupabaseWithStatus('kpis'),
+        fetchFromSupabaseWithStatus('global_kpi_params')
       ]);
 
       const mapTaskToCamelCase = (t) => ({
@@ -623,6 +775,41 @@ export function AppProvider({ children }) {
         dataColeta: k.data_coleta,
         collaboratorId: k.collaborator_id
       });
+
+      if (kpisRes && !kpisRes.error && Array.isArray(kpisRes.data)) {
+        setKpisTableExists(true);
+        const mappedKpis = kpisRes.data.map(k => ({
+          id: k.id,
+          code: k.code,
+          name: k.name,
+          category: k.category,
+          unit: k.unit,
+          color: k.color,
+          description: k.description,
+          params: k.params || [],
+          linkedParams: k.linked_params || [],
+          formula: k.formula
+        }));
+        if (mappedKpis.length > 0) {
+          _setKpis(mappedKpis);
+          localStorage.setItem('global_kpis', JSON.stringify(mappedKpis));
+        }
+      }
+
+      if (paramsRes && !paramsRes.error && Array.isArray(paramsRes.data)) {
+        setParamsTableExists(true);
+        const mappedParams = paramsRes.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          source: p.source,
+          desc: p.desc
+        }));
+        if (mappedParams.length > 0) {
+          _setGlobalParams(mappedParams);
+          localStorage.setItem('global_kpi_params', JSON.stringify(mappedParams));
+        }
+      }
 
       setProjects(projectsData?.map(mapProjectToCamelCase) || []);
       setTasks(tasksData?.map(mapTaskToCamelCase) || []);

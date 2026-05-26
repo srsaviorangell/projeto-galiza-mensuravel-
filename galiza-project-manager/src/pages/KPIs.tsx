@@ -12,7 +12,7 @@ import { AppContext } from '../context/AuthContext';
 import './KPIs.css';
 
 export default function KPIs() {
-  const { projects, tasks, refreshData, kpiCollections = [], kpis: allKpis, setKpis: setAllKpis, globalParams: allParams, setGlobalParams: setAllParams } = useContext(AppContext);
+  const { projects, tasks, refreshData, kpiCollections = [], kpis: allKpis, setKpis: setAllKpis, globalParams: allParams, setGlobalParams: setAllParams, users = [], addKpiCollection } = useContext(AppContext);
 
   const [paramForm, setParamForm] = useState({ id: '', name: '', type: 'Inteiro', source: '', desc: '' });
   const [isParamFormOpen, setIsParamFormOpen] = useState(false);
@@ -22,7 +22,10 @@ export default function KPIs() {
   const [isGlobalParamsModalOpen, setIsGlobalParamsModalOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState<string>('7 Dias');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
-  const [newKpi, setNewKpi] = useState({ code: '', name: '', category: 'Operacional', unit: '', color: '#FF5E2A' });
+  const [newKpi, setNewKpi] = useState({ code: '', name: '', category: 'Operacional', unit: '', color: '#FF5E2A', linkedParams: [] as string[] });
+  const [isNewCategoryMode, setIsNewCategoryMode] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
   const [selectedMetric, setSelectedMetric] = useState<string>('count');
   const [taskDetailModal, setTaskDetailModal] = useState<any>(null);
@@ -34,7 +37,11 @@ export default function KPIs() {
     }
   }, [selectedKPI]);
 
-  const categories = ['Operacional', 'Engenharia', 'ExpansÃ£o', 'Financeiro'];
+  const categories = useMemo(() => {
+    const base = ['Operacional', 'Engenharia', 'Expansão', 'Financeiro'];
+    const loaded = allKpis.map(k => k.category).filter(Boolean);
+    return Array.from(new Set([...base, ...loaded, ...customCategories]));
+  }, [allKpis, customCategories]);
   const trackRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const modalChartData = useMemo(() => {
@@ -174,18 +181,33 @@ export default function KPIs() {
     }, {});
   }, [allKpis, timeFilter, kpiCollections, customRange]);
 
+
+
   const handleAddKpi = () => {
-    if (!newKpi.code || !newKpi.name) return;
+    if (!newKpi.code || !newKpi.name || !newKpi.category) return;
+    
+    // Mapeia os nomes dos parâmetros baseados nos IDs selecionados
+    const selectedParamNames = (newKpi.linkedParams || []).map(pid => {
+      return allParams.find(p => p.id === pid)?.name;
+    }).filter(Boolean);
+
     const kpiToAdd = {
       ...newKpi,
       id: `custom-${Date.now()}`,
       icon: Activity,
       description: 'KPI customizado adicionado pelo usuário',
-      params: [] // Initialize with empty params, will be linked via linkedParams later or directly
+      params: selectedParamNames,
+      linkedParams: newKpi.linkedParams || []
     };
+    
+    if (isNewCategoryMode && !customCategories.includes(newKpi.category)) {
+      setCustomCategories([...customCategories, newKpi.category]);
+    }
+    
     setAllKpis([...allKpis, kpiToAdd]);
     setIsAddModalOpen(false);
-    setNewKpi({ code: '', name: '', category: 'Operacional', unit: '', color: '#FF5E2A' });
+    setIsNewCategoryMode(false);
+    setNewKpi({ code: '', name: '', category: 'Operacional', unit: '', color: '#FF5E2A', linkedParams: [] });
   };
 
   const handleRemoveKpi = (id: string) => {
@@ -250,7 +272,7 @@ export default function KPIs() {
         
         <div className="kpis-carousel-track" ref={el => { trackRefs.current['global'] = el; }} style={{ paddingBottom: '10px' }}>
           {allKpis.map(kpi => {
-            const data = kpiData[kpi.id];
+            const data = kpiData[kpi.id] || { value: '0.0', trend: '0.0', label: kpi.unit };
             const Icon = kpi.icon || Activity;
             
             // Gerar dados reais para o mini-gráfico
@@ -311,7 +333,7 @@ export default function KPIs() {
             
             <div className="kpis-carousel-track" ref={el => { trackRefs.current[cat] = el; }}>
               {catKpis.map(kpi => {
-                const data = kpiData[kpi.id];
+                const data = kpiData[kpi.id] || { value: '0.0', trend: '0.0', label: kpi.unit };
                 const Icon = kpi.icon || Activity;
                 return (
                   <div key={kpi.id} className="kpi-card" onClick={() => setSelectedKPI(kpi)}>
@@ -360,9 +382,30 @@ export default function KPIs() {
             <div className="modal-body">
               <div className="form-group">
                 <label>Classe (Categoria)</label>
-                <select value={newKpi.category} onChange={e => setNewKpi({...newKpi, category: e.target.value})}>
+                <select 
+                  value={isNewCategoryMode ? 'new' : newKpi.category} 
+                  onChange={e => {
+                    if (e.target.value === 'new') {
+                      setIsNewCategoryMode(true);
+                      setNewKpi({ ...newKpi, category: '' });
+                    } else {
+                      setIsNewCategoryMode(false);
+                      setNewKpi({ ...newKpi, category: e.target.value });
+                    }
+                  }}
+                >
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="new">+ Nova Classe (Categoria)...</option>
                 </select>
+                {isNewCategoryMode && (
+                  <input 
+                    type="text" 
+                    placeholder="Digite o nome da nova classe..." 
+                    value={newKpi.category} 
+                    onChange={e => setNewKpi({ ...newKpi, category: e.target.value })} 
+                    style={{ marginTop: '8px' }}
+                  />
+                )}
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -381,6 +424,43 @@ export default function KPIs() {
               <div className="form-group">
                 <label>Cor de Identidade</label>
                 <input type="color" value={newKpi.color} onChange={e => setNewKpi({...newKpi, color: e.target.value})} style={{ height: '40px', padding: '4px' }} />
+              </div>
+              <div className="form-group" style={{ marginTop: '15px' }}>
+                <label>Vincular Parâmetros Iniciais</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', minHeight: '40px' }}>
+                  {allParams.map(param => {
+                    const isLinked = newKpi.linkedParams?.includes(param.id);
+                    return (
+                      <button
+                        key={param.id}
+                        type="button"
+                        onClick={() => {
+                          const linked = newKpi.linkedParams || [];
+                          const nextLinked = linked.includes(param.id)
+                            ? linked.filter(id => id !== param.id)
+                            : [...linked, param.id];
+                          setNewKpi({ ...newKpi, linkedParams: nextLinked });
+                        }}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          border: isLinked ? '1px solid var(--accent)' : '1px solid var(--border)',
+                          background: isLinked ? 'rgba(255,100,0,0.1)' : 'transparent',
+                          color: isLinked ? 'var(--accent)' : 'var(--text-secondary)',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {param.name}
+                      </button>
+                    );
+                  })}
+                  {allParams.length === 0 && (
+                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Nenhum parâmetro cadastrado.</span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="modal-footer">

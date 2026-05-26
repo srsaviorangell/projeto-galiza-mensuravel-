@@ -1,7 +1,7 @@
 import { useContext, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppContext } from '../context/AuthContext';
-import { Search, Database, User, CheckCircle2, Clock, Calendar, FileText, X, AlertCircle } from 'lucide-react';
+import { Search, Database, User, CheckCircle2, Clock, Calendar, FileText, X, AlertCircle, TrendingUp } from 'lucide-react';
 import './PainelParametros.css';
 
 // Parâmetros de fallback caso o localStorage ainda não tenha sido iniciado pela aba KPIs
@@ -15,12 +15,63 @@ const FALLBACK_PARAMS = [
 ];
 
 export default function PainelParametros() {
-  const { tasks, users } = useContext(AppContext);
+  const { tasks, users, kpis = [], globalParams = [], kpiCollections = [], addKpiCollection, refreshData } = useContext(AppContext);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isManualLaunchModalOpen, setIsManualLaunchModalOpen] = useState(false);
+  const [manualLaunchForm, setManualLaunchForm] = useState({
+    kpiId: '',
+    quantidade: '',
+    data: new Date().toISOString().split('T')[0],
+    collaboratorId: '',
+    observacao: '',
+    kpiValues: {} as Record<string, string>
+  });
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Preenchidos' | 'Pendentes'>('Todos');
   const [paramFilter, setParamFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedParamData, setSelectedParamData] = useState<any>(null);
+
+  const handleSaveManualLaunch = async () => {
+    if (!manualLaunchForm.kpiId || !manualLaunchForm.quantidade || !manualLaunchForm.data) {
+      alert('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+    const selectedKpiObj = kpis.find(k => k.id === manualLaunchForm.kpiId);
+    if (!selectedKpiObj) return;
+
+    // Extrai nomes dos parâmetros de forma robusta com fallback para linkedParams
+    let paramNames = selectedKpiObj.params || [];
+    if (paramNames.length === 0 && selectedKpiObj.linkedParams && selectedKpiObj.linkedParams.length > 0) {
+      paramNames = selectedKpiObj.linkedParams.map((pid: string) => {
+        return (globalParams || []).find((p: any) => p.id === pid)?.name;
+      }).filter(Boolean);
+    }
+
+    try {
+      if (addKpiCollection) {
+        await addKpiCollection({
+          taskId: null,
+          kpiCode: selectedKpiObj.code,
+          kpiCategory: selectedKpiObj.category,
+          quantidade: Number(manualLaunchForm.quantidade),
+          dataColeta: manualLaunchForm.data,
+          parametros: paramNames,
+          valores: manualLaunchForm.kpiValues || {},
+          collaboratorId: manualLaunchForm.collaboratorId || null,
+          observacao: manualLaunchForm.observacao || 'Lançamento manual de dados'
+        });
+      }
+      setIsManualLaunchModalOpen(false);
+      setManualLaunchForm({ kpiId: '', quantidade: '', data: new Date().toISOString().split('T')[0], collaboratorId: '', observacao: '', kpiValues: {} });
+      if (refreshData) {
+        await refreshData();
+      }
+      alert('Lançamento manual registrado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao realizar lançamento manual:', err);
+      alert('Erro ao realizar lançamento manual: ' + err.message);
+    }
+  };
 
   const formatDisplayValue = (val: string) => {
     if (!val) return val;
@@ -43,7 +94,7 @@ export default function PainelParametros() {
   const parametersData = useMemo(() => {
     const list: any[] = [];
     
-    // Itera por todas as tarefas
+    // 1. Itera por todas as tarefas e seus preenchimentos
     tasks.forEach((task: any) => {
       // Coleta todos os nomes de parâmetros (seja os exigidos pela task, seja os preenchidos nas execuções)
       const paramNames = new Set<string>();
@@ -62,14 +113,12 @@ export default function PainelParametros() {
 
       // Se a tarefa tiver pelo menos 1 parâmetro (exigido ou preenchido)
       if (paramNames.size > 0) {
-        
         // Pega o colaborador responsável
         const assignee = users.find((u: any) => String(u.id) === String(task.assigneeId) || String(u.id) === String(task.assignee_id));
         const assigneeName = assignee ? assignee.name : (task.assignee || 'Não atribuído');
         
         // Para cada parâmetro detectado na tarefa, exibir na tabela
         paramNames.forEach((paramName: string) => {
-          
           // Verifica se já existe execução preenchida para esse parâmetro
           let preenchimento = 'Pendente';
           let dataPreenchimento = '';
@@ -100,9 +149,55 @@ export default function PainelParametros() {
         });
       }
     });
+
+    // Função utilitária para formatar a data sem sofrer com fuso horário
+    const formatDateStr = (dateStr: string) => {
+      if (!dateStr) return '—';
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('T')[0].split('-');
+        if (parts.length === 3) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+      }
+      return new Date(dateStr).toLocaleDateString('pt-BR');
+    };
+
+    // 2. Itera por todos os lançamentos manuais diretos (kpiCollections sem taskId)
+    (kpiCollections || []).forEach((col: any) => {
+      if (col.taskId) return; // Lançamentos com taskId já são representados via tarefas
+
+      const assignee = users.find((u: any) => String(u.id) === String(col.collaboratorId));
+      const assigneeName = assignee ? assignee.name : 'Geral';
+
+      const paramNames = new Set<string>();
+      if (col.parametros && Array.isArray(col.parametros)) {
+        col.parametros.forEach((p: string) => paramNames.add(p));
+      }
+      if (col.valores && typeof col.valores === 'object') {
+        Object.keys(col.valores).forEach(k => paramNames.add(k));
+      }
+
+      paramNames.forEach((paramName: string) => {
+        const valor = col.valores ? col.valores[paramName] : '';
+        const filled = valor !== undefined && valor !== null && valor !== '';
+
+        list.push({
+          id: `manual-${col.id}-${paramName}-${Math.random()}`,
+          taskTitle: `Lançamento Direto (${col.kpiCode})`,
+          taskId: null,
+          project: 'Lançamento Manual',
+          assignee: assigneeName,
+          status: 'Concluído',
+          parameter: paramName,
+          filled: filled,
+          value: String(valor || ''),
+          date: col.dataColeta ? formatDateStr(col.dataColeta) : '—'
+        });
+      });
+    });
     
     return list.sort((a, b) => a.parameter.localeCompare(b.parameter));
-  }, [tasks, users]);
+  }, [tasks, users, kpiCollections]);
 
   // Puxa os parâmetros globais da aba de KPIs (via LocalStorage)
   const uniqueParams = useMemo(() => {
@@ -155,11 +250,14 @@ export default function PainelParametros() {
 
   return (
     <div className="parametros-container animate-fadeIn">
-      <div className="parametros-header">
+      <div className="parametros-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div>
           <h1>Gestão de Parâmetros Coletados</h1>
           <p className="parametros-subtitle">Rastreabilidade completa: O que, Onde, Quem e Qual valor</p>
         </div>
+        <button className="btn-primary" onClick={() => setIsManualLaunchModalOpen(true)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <TrendingUp size={18} /> Lançamento Manual
+        </button>
       </div>
 
       <div className="parametros-filters" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
@@ -278,6 +376,165 @@ export default function PainelParametros() {
           </table>
         </div>
       </div>
+
+      {/* Modal Lançamento Manual */}
+      {isManualLaunchModalOpen && createPortal(
+        <div className="modal-overlay" onClick={() => setIsManualLaunchModalOpen(false)}>
+          <div className="modal-content" style={{ width: '90%', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', background: "rgba(255, 100, 0, 0.15)", color: "var(--accent)" }}>
+                  <TrendingUp size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0 }}>Lançamento Manual</h3>
+                  <p style={{ margin: 0, fontSize: "12px", color: "var(--text-tertiary)" }}>Inserir dados legados ou retroativos diretamente em um KPI</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setIsManualLaunchModalOpen(false)}><X size={20}/></button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1.5rem' }}>
+              
+              <div className="form-group">
+                <label>Selecionar Indicador (KPI) *</label>
+                <select 
+                  value={manualLaunchForm.kpiId} 
+                  onChange={e => {
+                    const kid = e.target.value;
+                    setManualLaunchForm({
+                      ...manualLaunchForm,
+                      kpiId: kid,
+                      kpiValues: {}
+                    });
+                  }}
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px' }}
+                >
+                  <option value="">Selecione...</option>
+                  {kpis.map(k => (
+                    <option key={k.id} value={k.id}>{k.code} - {k.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-row" style={{ display: 'flex', gap: '10px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Quantidade *</label>
+                  <input 
+                    type="number" 
+                    placeholder="Quantidade produzida..." 
+                    value={manualLaunchForm.quantidade} 
+                    onChange={e => setManualLaunchForm({ ...manualLaunchForm, quantidade: e.target.value })} 
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px' }}
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Data da Coleta *</label>
+                  <input 
+                    type="date" 
+                    value={manualLaunchForm.data} 
+                    onChange={e => setManualLaunchForm({ ...manualLaunchForm, data: e.target.value })} 
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Colaborador Responsável (Opcional)</label>
+                <select 
+                  value={manualLaunchForm.collaboratorId} 
+                  onChange={e => setManualLaunchForm({ ...manualLaunchForm, collaboratorId: e.target.value })}
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px' }}
+                >
+                  <option value="">Nenhum / Geral</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Observação / Justificativa</label>
+                <input 
+                  type="text" 
+                  placeholder="Ex: Lançamento de CTOs legados..." 
+                  value={manualLaunchForm.observacao} 
+                  onChange={e => setManualLaunchForm({ ...manualLaunchForm, observacao: e.target.value })} 
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px' }}
+                />
+              </div>
+
+              {/* Dynamic KPI Parameter Inputs */}
+              {(() => {
+                const selectedKpiObj = kpis.find(k => k.id === manualLaunchForm.kpiId);
+                if (!selectedKpiObj) return null;
+                
+                // Extração robusta de parâmetros, com fallback para buscar nos parâmetros globais através do linkedParams
+                let paramNames = selectedKpiObj.params || [];
+                if (paramNames.length === 0 && selectedKpiObj.linkedParams && selectedKpiObj.linkedParams.length > 0) {
+                  paramNames = selectedKpiObj.linkedParams.map((pid: string) => {
+                    return (globalParams || []).find((p: any) => p.id === pid)?.name;
+                  }).filter(Boolean);
+                }
+                
+                if (paramNames.length === 0) return null;
+                
+                return (
+                  <div style={{ marginTop: "0.5rem", padding: "1rem", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                    <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", color: "var(--accent)" }}>Valores dos Parâmetros do Indicador</h4>
+                    
+                    {paramNames.map((param, idx) => {
+                      const paramDef = (globalParams || []).find(p => p.name === param);
+                      const typeLower = (paramDef?.type || '').toLowerCase();
+                      const nameLower = param.toLowerCase();
+                      
+                      let inputType = "text";
+                      let step = undefined;
+                      
+                      if (typeLower === 'timestamp' || nameLower.includes('hora') || nameLower.includes('data') || nameLower.includes('date') || nameLower.includes('time')) {
+                        inputType = "datetime-local";
+                      } else if (typeLower === 'inteiro' || typeLower === 'number' || typeLower === 'integer') {
+                        inputType = "number";
+                        step = "1";
+                      } else if (typeLower === 'decimal') {
+                        inputType = "number";
+                        step = "any";
+                      }
+                      
+                      return (
+                        <div className="form-group" key={idx} style={{ marginTop: "10px" }}>
+                          <label>{param}</label>
+                          <input 
+                            type={inputType}
+                            step={step}
+                            value={manualLaunchForm.kpiValues[param] || ''}
+                            onChange={e => {
+                              setManualLaunchForm({
+                                ...manualLaunchForm,
+                                kpiValues: {
+                                  ...manualLaunchForm.kpiValues,
+                                  [param]: e.target.value
+                                }
+                              });
+                            }}
+                            placeholder="Valor do parâmetro..."
+                            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '8px', borderRadius: '6px', width: '100%' }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', padding: '1.5rem', borderTop: '1px solid var(--border)' }}>
+              <button className="btn-secondary" onClick={() => setIsManualLaunchModalOpen(false)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+              <button className="btn-primary" onClick={handleSaveManualLaunch} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Salvar Lançamento</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Modal de Detalhes do Parâmetro */}
       {selectedParamData && createPortal(
