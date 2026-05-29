@@ -273,10 +273,10 @@ export default function KPIs() {
         <div className="kpis-carousel-track" ref={el => { trackRefs.current['global'] = el; }} style={{ paddingBottom: '10px' }}>
           {allKpis.map(kpi => {
             const data = kpiData[kpi.id] || { value: '0.0', trend: '0.0', label: kpi.unit };
-            const Icon = kpi.icon || Activity;
+            const Icon = (kpi.icon && (typeof kpi.icon === 'function' || (typeof kpi.icon === 'object' && kpi.icon.$$typeof))) ? kpi.icon : Activity;
             
             // Gerar dados reais para o mini-gráfico
-            const miniChartData = tasks.filter(t => t.executions?.some((e: any) => e.kpiValues && e.kpiValues[allParams.find(p => kpi.linkedParams?.includes(p.id))?.name || '']))
+            const miniChartData = tasks.filter(t => Array.isArray(t.executions) && t.executions.some((e: any) => e.kpiValues && e.kpiValues[allParams?.find(p => kpi.linkedParams?.includes(p.id))?.name || '']))
               .slice(-7).map((t, idx) => ({ val: Math.random() * 10 })); // Placeholder se não houver execuções
 
             return (
@@ -334,7 +334,7 @@ export default function KPIs() {
             <div className="kpis-carousel-track" ref={el => { trackRefs.current[cat] = el; }}>
               {catKpis.map(kpi => {
                 const data = kpiData[kpi.id] || { value: '0.0', trend: '0.0', label: kpi.unit };
-                const Icon = kpi.icon || Activity;
+                const Icon = (kpi.icon && (typeof kpi.icon === 'function' || (typeof kpi.icon === 'object' && kpi.icon.$$typeof))) ? kpi.icon : Activity;
                 return (
                   <div key={kpi.id} className="kpi-card" onClick={() => setSelectedKPI(kpi)}>
                     <div className="kpi-card-actions">
