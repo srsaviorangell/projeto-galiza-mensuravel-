@@ -1250,21 +1250,22 @@ const handleSaveExecution = async () => {
                         <button
                           key={kpi.code}
                           onClick={() => {
+                            const isSelected = taskForm.kpiEnabled && taskForm.kpiCode === kpi.code;
                             setTaskForm({
                               ...taskForm,
-                              kpiCode: kpi.code,
-                              kpiEnabled: true,
-                              kpiCategory: kpi.category || '',
-                              kpiParams: kpi.params || []
+                              kpiCode: isSelected ? '' : kpi.code,
+                              kpiEnabled: !isSelected,
+                              kpiCategory: isSelected ? '' : (kpi.category || ''),
+                              kpiParams: isSelected ? [] : (kpi.params || [])
                             });
                           }}
                           style={{
                             padding: '10px',
                             borderRadius: '8px',
                             border: '1px solid var(--border)',
-                            background: taskForm.kpiCode === kpi.code ? 'rgba(255,100,0,0.1)' : 'rgba(255,255,255,0.02)',
-                            color: taskForm.kpiCode === kpi.code ? 'var(--accent)' : 'var(--text-primary)',
-                            borderColor: taskForm.kpiCode === kpi.code ? 'var(--accent)' : 'var(--border)',
+                            background: (taskForm.kpiEnabled && taskForm.kpiCode === kpi.code) ? 'rgba(255,100,0,0.1)' : 'rgba(255,255,255,0.02)',
+                            color: (taskForm.kpiEnabled && taskForm.kpiCode === kpi.code) ? 'var(--accent)' : 'var(--text-primary)',
+                            borderColor: (taskForm.kpiEnabled && taskForm.kpiCode === kpi.code) ? 'var(--accent)' : 'var(--border)',
                             fontSize: '11px',
                             textAlign: 'left',
                             cursor: 'pointer',
